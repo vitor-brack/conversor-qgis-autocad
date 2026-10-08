@@ -1,0 +1,27 @@
+# Ambiente virtual e cache do Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Saida do PyInstaller e pacotes para distribuir
+build/
+dist/
+*.zip
+
+# Saida dos testes e dos exemplos do README
+testes/_saida/
+saida/
+
+# Desenhos de clientes usados nos testes (verificar_desenhos_reais.py).
+# Nao sobem: sao dados de terceiros.
+Arquivos de testes/
+*.dwg
+*.dwl
+*.dwl2
+*.bak
+
+# Editores
+.idea/
+.vscode/
+nbproject/
