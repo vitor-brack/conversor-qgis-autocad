@@ -1,0 +1,258 @@
+===========================================================
+  CONVERSOR QGIS <-> AUTOCAD
+===========================================================
+
+Para abrir: clique duas vezes em  ConversorGeo.exe
+
+Nao precisa instalar nada. Nao precisa ter o QGIS nem o
+AutoCAD aberto para usar.
+
+Dica: clique com o botao direito no ConversorGeo.exe e
+escolha "Enviar para > Area de trabalho" para criar um
+atalho.
+
+
+-----------------------------------------------------------
+  DO AUTOCAD PARA O QGIS
+-----------------------------------------------------------
+
+1. Abra a aba "AutoCAD -> QGIS".
+
+2. Escolha o desenho (.dxf ou .dwg).
+
+3. Informe em que coordenadas o desenho esta. Esta e a unica
+   parte que exige atencao: o desenho do AutoCAD NAO guarda
+   essa informacao, entao alguem precisa dizer.
+
+   Se o desenho foi feito por este mesmo programa, ele
+   descobre sozinho e avisa na tela.
+
+4. Escolha o formato de saida (GeoPackage e o mais pratico) e
+   clique em CONVERTER PARA QGIS.
+
+5. No fim o programa avisa qual arquivo abrir. De dois cliques
+   no arquivo .qgs que ele criou.
+
+
+O QUE VEM JUNTO NO .QGS:
+
+  - As cores sao as mesmas do AutoCAD, entidade por entidade.
+    Se dentro de uma camada havia linhas de cores diferentes,
+    elas continuam diferentes no QGIS - cada cor aparece como
+    um item separado na legenda.
+
+  - Areas pintadas (hachuras) chegam pintadas, com a cor do
+    desenho. Hachuras com textura (cruzes, tracos, listras,
+    cascalho) chegam com a MESMA textura do AutoCAD, desenhada
+    traco por traco - inclusive nas amostras da legenda - e
+    so dentro da area hachurada (as partes brancas, como a
+    escavacao de um perfil, continuam brancas).
+
+  - Cotas chegam com as pontas de seta. Os pontos de definicao
+    das cotas (que o AutoCAD usa para montar a cota e nunca
+    imprime) ficam de fora.
+
+  - Os textos ficam no mesmo lugar, tamanho, cor, alinhamento
+    e inclinacao do AutoCAD. Textos que eram centralizados
+    numa tabela continuam centralizados. Textos com partes de
+    cores ou letras diferentes (como o logo Geosana, com "Geo"
+    azul e "sana" verde) chegam com essas cores e letras.
+
+  - Textos de varias linhas (como o titulo do carimbo) quebram
+    nas mesmas palavras e com o mesmo espacamento do AutoCAD.
+    Na tabela de atributos do QGIS, cada linha aparece como um
+    item separado - e isso que garante o espacamento certo.
+
+  - As imagens do desenho (logotipos, fotos) tambem vem, no
+    lugar certo - desde que o arquivo da imagem esteja na
+    mesma pasta do desenho. Veja a secao sobre imagens abaixo.
+
+  - O mapa ja abre enquadrado na area do desenho.
+
+  - No painel de camadas, cada camada do AutoCAD pode aparecer
+    em ate cinco partes: _Texto, _Point (pontos), _LineString
+    (linhas), _Textura (a textura das hachuras) e _Hachura
+    (areas pintadas). Da para ligar e desligar cada uma
+    separadamente.
+
+  - Camadas que estavam DESLIGADAS ou CONGELADAS no AutoCAD
+    vem para o QGIS desmarcadas: os dados estao la, mas so
+    aparecem se voce marcar a caixinha da camada.
+
+  - A folha de impressao (a aba Layout do AutoCAD: moldura e
+    carimbo da folha) nao vem - so o desenho da aba Model.
+
+  - Os pontos saem com o mesmo simbolo do AutoCAD (circulo,
+    cruz, quadrado...), no mesmo tamanho.
+
+  - Onde duas linhas de cores diferentes passam uma por cima
+    da outra, aparece a mesma que aparece no AutoCAD.
+
+  - Textos de letra estreita no AutoCAD (como os rotulos do
+    carimbo do INCRA e o quadro de situacoes cartograficas)
+    saem um pouco menores, para caber no mesmo espaco do
+    AutoCAD sem encostar no texto ao lado. Quando um texto
+    tem um espaco no meio para outro texto (o 45 de
+    "MERIDIANO CENTRAL 45 graus WGr"), cada parte fica no
+    lugar em que esta no AutoCAD.
+
+DICA UTIL: na legenda do QGIS, cada cor aparece pelo seu
+codigo (por exemplo #a52a2a). Clique duas vezes nesse texto
+para trocar por um nome de verdade, como "Calcario" ou
+"Arenito". O nome fica salvo no projeto.
+
+Se quiser mudar uma cor, clique com o botao direito na camada
+e escolha Propriedades > Simbologia.
+
+SOBRE A LETRA: o QGIS usa a mesma letra do AutoCAD quando o
+texto escolhe uma (como o logo e o carimbo) e ela esta
+instalada no computador. Nos outros textos, usa Arial. O
+AutoCAD costuma usar letras um pouco mais estreitas ou mais
+largas, entao um texto pode ficar um pouquinho mais comprido ou
+mais curto - mas sempre no lugar certo e com o alinhamento
+certo. Letras "esticadas" ou "comprimidas" no AutoCAD (estilos
+de texto largos ou estreitos, como no carimbo e nos titulos das
+plantas) aparecem no QGIS na largura normal da letra: o QGIS
+nao sabe esticar nem comprimir letra - tentando, ele afasta ou
+encavala as letras.
+
+
+-----------------------------------------------------------
+  IMAGENS DO DESENHO
+-----------------------------------------------------------
+
+O arquivo do AutoCAD nao guarda a imagem dentro dele: guarda
+so o endereco do arquivo (por exemplo E:\PROJETO\logo.jpg).
+
+O programa procura a imagem nesse endereco e, se nao achar,
+procura pelo nome na mesma pasta do desenho. Quando acha, ela
+aparece no QGIS no lugar certo.
+
+Se aparecer a mensagem "Imagem NAO encontrada", e so copiar o
+arquivo da imagem para a mesma pasta do desenho e converter
+de novo.
+
+Para nao trazer imagens, desmarque a opcao "Trazer as imagens
+do desenho" na tela.
+
+
+-----------------------------------------------------------
+  AREAS (POLILINHAS FECHADAS)
+-----------------------------------------------------------
+
+A opcao "Transformar polilinhas fechadas em areas" fica
+DESMARCADA por padrao.
+
+  - Desmarcada: toda polilinha chega como linha. E o certo
+    para curvas de nivel, que muitas vezes se fecham em volta
+    de um morro.
+
+  - Marcada: polilinhas fechadas viram areas, e o QGIS passa
+    a conseguir calcular a area delas. Use quando o desenho
+    tiver limites de terreno, lotes, corpos geologicos.
+
+
+-----------------------------------------------------------
+  DO QGIS PARA O AUTOCAD
+-----------------------------------------------------------
+
+1. Abra a aba "QGIS -> AutoCAD".
+
+2. Clique em "Adicionar..." e escolha o arquivo do QGIS
+   (.shp, .gpkg, .geojson). Pode adicionar varios: todos
+   entram no mesmo desenho, cada um numa camada.
+
+3. Confira o sistema de coordenadas. O normal e deixar
+   SIRGAS 2000 / UTM 22S, que ja vem marcado.
+
+4. Duas opcoes que costumam ser uteis:
+
+   "Nome da camada vem de" - escolha uma coluna da tabela
+   (por exemplo "litologia") e o desenho sai com uma camada
+   do AutoCAD para cada valor diferente dela.
+
+   "Escrever texto do campo" - escolha uma coluna (por
+   exemplo "codigo") e o programa escreve esse texto ao lado
+   de cada ponto no desenho.
+
+5. Escolha onde salvar e clique em CONVERTER PARA AUTOCAD.
+
+
+As areas do QGIS chegam no AutoCAD como contorno (linha
+fechada), e nao como uma mancha pintada que esconderia o que
+esta embaixo.
+
+IMPORTANTE: o desenho do AutoCAD nao tem tabela de atributos.
+Ele so guarda as linhas e o nome das camadas. Por isso o
+programa salva um arquivo .csv junto, com a tabela completa.
+Esse .csv abre no Excel.
+
+
+-----------------------------------------------------------
+  IMPORTANTE: .QGS E .QGZ NAO SAO ARQUIVOS DE DADOS
+-----------------------------------------------------------
+
+Essa confusao e comum, porque o nome parece indicar o
+contrario.
+
+  .gpkg / .shp / .geojson  = os DADOS (as linhas, os pontos)
+  .qgs / .qgz              = o PROJETO (quais camadas estao
+                             abertas, as cores, o layout)
+
+O projeto nao contem os dados dentro dele. Ele so aponta para
+os arquivos de dados, que ficam ao lado. Por isso o menu
+"Projeto > Abrir Projeto" nao enxerga um .gpkg: aquele menu so
+aceita projeto.
+
+O programa cria os dois de uma vez, entao e so dar dois
+cliques no .qgs.
+
+Se algum dia quiser abrir so os dados, sem projeto:
+   Camada > Adicionar Camada > Adicionar Camada Vetorial
+ou simplesmente arraste o arquivo para dentro do QGIS.
+
+Uma coisa a lembrar: o .qgs e os dados andam juntos. Se copiar
+para um pendrive, leve a pasta inteira, nao so o .qgs.
+
+
+-----------------------------------------------------------
+  SOBRE ARQUIVOS .DWG
+-----------------------------------------------------------
+
+O programa trabalha com .dxf sem precisar de mais nada.
+
+Para arquivos .dwg e preciso instalar o ODA File Converter,
+que e gratuito:
+
+   https://www.opendesign.com/guestfiles/oda_file_converter
+
+Baixe a versao "Windows 8-11 64-bit", instale, e o programa
+passa a aceitar .dwg sozinho.
+
+Se preferir nao instalar: no AutoCAD, use
+Arquivo > Salvar Como e escolha
+"AutoCAD 2004/LT2004 DXF (*.dxf)".
+
+
+-----------------------------------------------------------
+  OBSERVACOES
+-----------------------------------------------------------
+
+- Indo do QGIS para o AutoCAD, os acentos sao trocados por
+  letras simples nos nomes de camada (Secao no lugar de
+  Se..o). Isso e de proposito: garante que o texto apareca
+  igual nos dois programas. Os acentos originais ficam
+  preservados no arquivo .csv. Se preferir manter os acentos
+  no desenho, desmarque a opcao na tela.
+
+  No sentido contrario (AutoCAD para QGIS) os acentos do
+  desenho sao preservados normalmente.
+
+- Angulos e simbolos como 45 graus, +/- e diametro sao
+  preservados nos dois sentidos.
+
+- As cotas (valores de altura) das curvas de nivel sao
+  preservadas nos dois sentidos.
+
+- O desenho e gravado no formato AutoCAD 2004, que o
+  AutoCAD 2007 abre normalmente.
