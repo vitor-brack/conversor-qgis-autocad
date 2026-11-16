@@ -632,27 +632,33 @@ COMO USAR.txt      manual de quem usa o programa (vai junto com o executável)
 ## Testes
 
 ```powershell
-.\.venv\Scripts\python.exe testes\teste_ida_volta.py
-.\.venv\Scripts\python.exe testes\teste_casos.py
-.\.venv\Scripts\python.exe testes\teste_projeto_qgs.py
-.\.venv\Scripts\python.exe testes\teste_estilo.py
-.\.venv\Scripts\python.exe testes\teste_carimbo.py
-.\.venv\Scripts\python.exe testes\teste_texturas.py
-.\.venv\Scripts\python.exe testes\teste_camadas.py
+.\.venv\Scripts\python.exe -m pytest
 ```
 
-O primeiro faz um ciclo completo QGIS → AutoCAD → QGIS e confere se as
-coordenadas voltam idênticas. O segundo cobre reprojeção, acentos, arquivos sem
-`.prj`, desenhos vazios e a construção da janela. O terceiro valida a estrutura
-do `.qgs` gerado. `teste_carimbo` confere ancoragem, tamanho e rotação de cada
-texto de um carimbo, hachuras e imagens; `teste_texturas`, as texturas de
+São testes de pytest (`testes/test_*.py`). Rodam em cerca de um minuto e não
+precisam do QGIS, do AutoCAD nem do ODA File Converter. Para um arquivo só,
+passe o caminho: `-m pytest testes\test_casos.py`. A cada push o GitHub
+Actions roda os mesmos testes (`.github/workflows/ci.yml`).
+
+Dois testes usam fontes que vêm com o Office, não com o Windows (Bookman Old
+Style e Arial Rounded MT Bold), e são pulados onde elas não estão instaladas:
+o que confere a fonte do logo e o do carimbo em Bookman, ambos em
+`test_texturas`. O resto não depende de fonte nenhuma.
+
+`test_ida_volta` faz um ciclo completo QGIS → AutoCAD → QGIS e confere se as
+coordenadas voltam idênticas. `test_casos` cobre reprojeção, acentos, arquivos
+sem `.prj`, desenhos vazios e a construção da janela (que nasce escondida:
+nada aparece na tela). `test_projeto_qgs` valida a estrutura do `.qgs` gerado.
+`test_estilo` confere a cor de cada entidade e os acentos. `test_carimbo`
+confere ancoragem, tamanho e rotação de cada texto de um carimbo, hachuras e
+imagens; `test_texturas`, as texturas de
 hachura (inclusive com borda em spline e em bloco espelhado), o logo formatado,
 um carimbo em fonte de carimbo num estilo largo, com a fonte gravada de cada
 jeito que o AutoCAD aceita, quebras escritas e um título que o próprio AutoCAD
 quebra — as linhas têm de sair iguais às do AutoCAD, cada uma na sua linha de
 base —, um perfil futuro com a borda remendada como a do PLOT.dwg (todo traço
 do padrão tem de cair no solo; o recorte antigo deixava 74 fora), uma cota com
-SOLID e pontos de definição, e um título comprimido. `teste_camadas` cobre o
+SOLID e pontos de definição, e um título comprimido. `test_camadas` cobre o
 que veio dos outros desenhos: camadas desligadas e congeladas (desmarcadas,
 fora do enquadramento, com a cor da camada), a folha do espaço de papel, o
 estilo de ponto `$PDMODE 34`, um rótulo a 57% que não pode invadir o valor
@@ -719,14 +725,14 @@ Há mais dois verificadores, cada um com o seu desenho de teste:
 
 ```powershell
 # carimbo: onde fica a linha de base de cada texto, pela regra do AutoCAD
-.\.venv\Scripts\python.exe testes\teste_carimbo.py      # gera testes\_saida\carimbo
+.\.venv\Scripts\python.exe -m pytest testes\test_carimbo.py   # gera testes\_saida\carimbo
 & "C:\Program Files\QGIS 3.44.12\bin\python-qgis-ltr.bat" `
     testes\verificar_textos_no_qgis.py testes\_saida\carimbo\saida\c.qgs `
     testes\_saida\carimbo\esperado.json render.png
 
 # texturas, logo, carimbo, perfil futuro, cotas: desenha cada camada sozinha e conta
 # os pixels; no carimbo, acha a linha de cada texto e mede o espacamento
-.\.venv\Scripts\python.exe testes\teste_texturas.py     # gera testes\_saida\texturas
+.\.venv\Scripts\python.exe -m pytest testes\test_texturas.py  # gera testes\_saida\texturas
 & "C:\Program Files\QGIS 3.44.12\bin\python-qgis-ltr.bat" `
     testes\verificar_texturas_no_qgis.py testes\_saida\texturas\saida\plot.qgs `
     testes\_saida\texturas\esperado.json render.png
