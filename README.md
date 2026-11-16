@@ -1,52 +1,14 @@
 # Conversor QGIS ⇄ AutoCAD
 
-Programa de janela para Windows que converte camadas vetoriais do QGIS para
-desenhos do AutoCAD e vice-versa. Pensado para AutoCAD 2007 e QGIS recente.
+![A janela do Conversor QGIS ⇄ AutoCAD. Na aba QGIS → AutoCAD, um GeoPackage com 3 camadas vira um DXF com 8 feições. Na aba AutoCAD → QGIS, o DXF volta como GeoPackage, com um projeto .qgs, e 9 feições](docs/conversor.gif)
 
-O executável final **não precisa de Python, nem de QGIS, nem do AutoCAD
-instalados** — o GDAL, o PROJ e o ezdxf vão embutidos. O manual de quem usa
-o programa é o [`COMO USAR.txt`](COMO%20USAR.txt), que vai junto com o
-executável.
+*Dados de exemplo sintéticos: curvas de nível, pontos de amostra e polígonos de unidades geológicas em SIRGAS 2000 / UTM 22S. Na volta são 9 feições, e não 8, porque o buraco de um polígono vira um contorno à parte no DXF. As janelas do Windows para escolher arquivos não aparecem no GIF.*
 
----
+Programa de janela para Windows que converte camadas vetoriais do QGIS (GeoPackage, Shapefile, GeoJSON) em desenhos do AutoCAD e de volta. Pensado para AutoCAD 2007 e QGIS recente. Indo para o AutoCAD, grava um `.dxf` com os atributos num `.csv` ao lado. Voltando para o QGIS, grava um GeoPackage, Shapefile ou GeoJSON e um projeto `.qgs` que já abre com as cores, os textos, as hachuras, as imagens e a ordem de desenho do original.
 
-## Instalação para desenvolvimento
+**[Baixar o ConversorGeo-windows.zip](https://github.com/vitor-brack/conversor-qgis-autocad/releases/latest)** para Windows de 64 bits. Extraia a pasta `ConversorGeo` inteira para onde quiser e abra o `ConversorGeo.exe`. Não precisa instalar Python, QGIS nem AutoCAD: o GDAL, o PROJ e o ezdxf vão embutidos. O manual de quem usa o programa é o [`COMO USAR.txt`](COMO%20USAR.txt), que vem na mesma pasta.
 
-Python 3.13 no Windows. Com o repositório clonado, dentro da pasta dele:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-```
-
-`requirements.txt` tem o que o programa usa (Fiona, pyproj, ezdxf);
-`requirements-dev.txt` acrescenta o PyInstaller, que gera o executável.
-
-## Como rodar durante o desenvolvimento
-
-```powershell
-.\.venv\Scripts\python.exe -m conversor
-```
-
-Sem argumentos abre a janela. Com argumentos funciona por linha de comando:
-
-```powershell
-# QGIS -> AutoCAD
-.\.venv\Scripts\python.exe -m conversor paracad campo.gpkg campo.dxf --epsg 31982 --campo-rotulo codigo
-
-# AutoCAD -> QGIS
-.\.venv\Scripts\python.exe -m conversor paraqgis campo.dxf saida.gpkg --epsg 31982
-```
-
-## Como gerar o executável
-
-```powershell
-.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --clean conversor.spec
-```
-
-Sai em `dist\ConversorGeo\`, já com o `COMO USAR.txt` ao lado do
-`ConversorGeo.exe`. Copie a pasta inteira para o computador de destino e crie
-um atalho para o executável.
+O executável não é assinado digitalmente, então o Windows ou o antivírus pode pedir confirmação na primeira vez que ele abrir. O DXF gerado ainda não foi aberto num AutoCAD 2007 de verdade.
 
 ---
 
@@ -606,6 +568,44 @@ A em outro, vale o lado com mais metros sobrepostos.
 - A textura de uma hachura é geometria fixa: é o padrão como o AutoCAD o
   desenharia naquela escala, não um estilo do QGIS que se possa trocar.
 - Imagem com recorte (clipping) aparece inteira.
+
+## Instalação para desenvolvimento
+
+Python 3.13 no Windows. Com o repositório clonado, dentro da pasta dele:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+```
+
+`requirements.txt` tem o que o programa usa (Fiona, pyproj, ezdxf);
+`requirements-dev.txt` acrescenta o PyInstaller, que gera o executável.
+
+## Como rodar durante o desenvolvimento
+
+```powershell
+.\.venv\Scripts\python.exe -m conversor
+```
+
+Sem argumentos abre a janela. Com argumentos funciona por linha de comando:
+
+```powershell
+# QGIS -> AutoCAD
+.\.venv\Scripts\python.exe -m conversor paracad campo.gpkg campo.dxf --epsg 31982 --campo-rotulo codigo
+
+# AutoCAD -> QGIS
+.\.venv\Scripts\python.exe -m conversor paraqgis campo.dxf saida.gpkg --epsg 31982
+```
+
+## Como gerar o executável
+
+```powershell
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --clean conversor.spec
+```
+
+Sai em `dist\ConversorGeo\`, já com o `COMO USAR.txt` ao lado do
+`ConversorGeo.exe`. Copie a pasta inteira para o computador de destino e crie
+um atalho para o executável.
 
 ## Estrutura
 
