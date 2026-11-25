@@ -43,6 +43,8 @@ def main():
                     help="nao gerar o arquivo de projeto .qgs")
     p2.add_argument("--sem-imagens", action="store_true",
                     help="nao trazer as imagens raster do desenho")
+    p2.add_argument("--sem-textos-e-hachuras", action="store_true",
+                    help="nao levar textos nem hachuras (so pontos, linhas e areas)")
     p2.add_argument("--areas", action="store_true",
                     help="transformar polilinhas fechadas em poligonos")
 
@@ -63,7 +65,8 @@ def main():
                 separar_por_camada=not args.juntar_camadas,
                 gerar_projeto=not args.sem_projeto,
                 incluir_imagens=not args.sem_imagens,
-                poli_fechada_como_poligono=args.areas)
+                poli_fechada_como_poligono=args.areas,
+                sem_textos_e_hachuras=args.sem_textos_e_hachuras)
     except convert.ErroConversao as erro:
         print("ERRO:", erro, file=sys.stderr)
         return 1

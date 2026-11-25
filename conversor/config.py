@@ -15,6 +15,7 @@ PADROES = {
     "salvar_atributos_csv": True,
     "separar_por_camada": True,
     "polilinha_fechada_vira_area": False,
+    "sem_textos_e_hachuras": False,
     "gerar_projeto_qgis": True,
     "incluir_imagens": True,
     "ultima_pasta": "",

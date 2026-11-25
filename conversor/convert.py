@@ -13,7 +13,7 @@ import pyproj
 from fiona.crs import CRS
 
 from . import (cad_ezdxf, crs_presets, dwg, dxf_estilo, dxf_extras, dxfio,
-               imagens_cad, qgis_project, textos_cad)
+               fora_da_area, imagens_cad, qgis_project, textos_cad)
 
 warnings.filterwarnings("ignore")
 
@@ -135,6 +135,36 @@ def _tipo_base(geom):
     if tipo.startswith("Multi"):
         tipo = tipo[5:]
     return tipo
+
+
+def _tem_cota(coords):
+    """True se algum vertice tem Z diferente de zero (curva de nivel, ponto cotado)."""
+    if not coords:
+        return False
+    if isinstance(coords[0], (int, float)):
+        return len(coords) > 2 and abs(coords[2]) > 1e-9
+    return any(_tem_cota(parte) for parte in coords)
+
+
+def _com_cota_da_spline(geom, cotas):
+    """Poe o Z nos vertices de uma spline que o GDAL entregou sem cota.
+
+    Curva de nivel tem a mesma cota em todos os pontos de controle e ela vale
+    para a linha toda. Se a cota varia, ela e interpolada ao longo da linha.
+    """
+    if geom["type"] != "LineString" or not cotas:
+        return geom
+    coords, n = geom["coordinates"], len(geom["coordinates"])
+    if max(cotas) - min(cotas) < 1e-9 or len(cotas) == 1 or n < 2:
+        zs = [cotas[0]] * n
+    else:
+        zs = []
+        for i in range(n):
+            pos = i / (n - 1) * (len(cotas) - 1)
+            k = min(int(pos), len(cotas) - 2)
+            zs.append(cotas[k] + (cotas[k + 1] - cotas[k]) * (pos - k))
+    return {"type": "LineString",
+            "coordinates": [(c[0], c[1], z) for c, z in zip(coords, zs)]}
 
 
 def _fechada(coords):
@@ -698,7 +728,8 @@ def _ajustar_textos(ajustes, transformador):
     return sum(1 for a in ajustes if a["ajustavel"])
 
 
-def _acrescentar_hachuras(grupos, hachuras, transformador, separar_por_camada, ocultas):
+def _acrescentar_hachuras(grupos, hachuras, transformador, separar_por_camada, ocultas,
+                          saida_de=None):
     """Poe nos grupos as hachuras lidas pelo ezdxf. Devolve quantas tem padrao.
 
     Solida vira poligono preenchido (camada _Hachura). Com padrao, vira as
@@ -709,6 +740,8 @@ def _acrescentar_hachuras(grupos, hachuras, transformador, separar_por_camada, o
     com_padrao = 0
     for h in hachuras:
         camada_cad = h["camada"] if separar_por_camada else ""
+        if camada_cad and saida_de:
+            camada_cad = saida_de(camada_cad, dxf_estilo.para_hex(h["cor"]))
         props = {"Layer": h["camada"], "SubClasses": "AcDbEntity:AcDbHatch",
                  "Linetype": None, "EntityHandle": h["handle"], "Text": None,
                  CAMPO_COR: dxf_estilo.para_hex(h["cor"]), CAMPO_HACHURA: h["padrao"]}
@@ -753,7 +786,10 @@ def _caixa_do_texto(feicao):
 
 def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None,
                   separar_por_camada=True, poli_fechada_como_poligono=False,
-                  gerar_projeto=True, incluir_imagens=True, registrar=print):
+                  gerar_projeto=True, incluir_imagens=True, camadas=None,
+                  descartar_fora_da_caixa=None, dxf_pronto=None, cores=None,
+                  separar_por_cor=None, sem_textos_e_hachuras=False,
+                  feicoes_escolhidas=None, registrar=print):
     """Converte um DXF/DWG em GPKG, Shapefile ou GeoJSON.
 
     A saida e separada por camada do AutoCAD (opcional) e por tipo: pontos,
@@ -761,11 +797,59 @@ def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None
 
     Com `gerar_projeto`, grava tambem um .qgs ao lado, ja apontando para os
     dados e reproduzindo a aparencia do desenho -- ver qgis_project.py.
-    """
-    caminho_dxf = entrada
-    if os.path.splitext(entrada)[1].lower() == ".dwg":
-        caminho_dxf = dwg.dwg_para_dxf(entrada, registrar)
 
+    `camadas` e o conjunto de camadas do AutoCAD a converter (None = todas):
+    o que esta em outra camada nao entra, seja linha, ponto, texto, hachura ou
+    imagem. `descartar_fora_da_caixa` e uma caixa (xmin, ymin, xmax, ymax) nas
+    coordenadas do desenho: a feicao com todos os vertices fora dela fica de
+    fora (ver fora_da_area.py). `dxf_pronto` e um DXF ja convertido do .dwg, que
+    evita chamar o ODA de novo (e e de quem o passou: nao e apagado aqui). Sem ele,
+    o .dwg passa pelo ODA numa pasta do TEMP, apagada no fim, de certo ou nao.
+
+    `cores` filtra por cor DENTRO das camadas: {camada: {"#rrggbb", ...}} deixa em cada
+    camada listada so as feicoes dessas cores (camada que nao esta no dicionario leva
+    todas). `separar_por_cor` e o conjunto das camadas cuja saida se divide por cor: cada
+    cor vira uma camada de saida, de nome "<camada>_<cor>".
+
+    `sem_textos_e_hachuras` deixa de fora os textos e as hachuras: juntando por tipo, o
+    resultado fica so com pontos, linhas e areas (textos e hachuras viriam como arquivos
+    extras).
+
+    `feicoes_escolhidas` sao ids de feicao do GDAL (dxf_estilo.id_da_feicao) escolhidas uma a
+    uma, como as linhas e os textos que se clica no desenho. Elas entram alem das `camadas` e
+    passam por cima do filtro de camadas e do de cor (as hachuras so entram pela camada). Os
+    ids so servem para o mesmo DXF que a previa leu.
+    """
+    separar_por_cor = set(separar_por_cor or ())
+    escolhidas = {int(f) for f in (feicoes_escolhidas or ())}
+    if cores is not None:
+        cores = {camada: set(lista) for camada, lista in cores.items()}
+    if camadas is not None:
+        camadas = set(camadas)
+        if not camadas and not escolhidas:
+            raise ErroConversao("Nenhuma camada foi escolhida. Marque ao menos uma "
+                                "camada para converter.")
+    copia_do_dwg = None
+    if not dxf_pronto and os.path.splitext(entrada)[1].lower() == ".dwg":
+        copia_do_dwg = dwg.dwg_para_dxf(entrada, registrar)
+    try:
+        return _converter_dxf(
+            entrada, copia_do_dwg or dxf_pronto or entrada, saida, epsg_origem, formato,
+            epsg_destino, separar_por_camada, poli_fechada_como_poligono, gerar_projeto,
+            incluir_imagens, camadas, descartar_fora_da_caixa, cores, separar_por_cor,
+            sem_textos_e_hachuras, escolhidas, registrar)
+    finally:
+        # a copia do desenho do cliente que o ODA fez no TEMP (a do painel, nao: e dele)
+        if copia_do_dwg:
+            dwg.apagar_temporario(copia_do_dwg)
+
+
+def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_destino,
+                   separar_por_camada, poli_fechada_como_poligono, gerar_projeto,
+                   incluir_imagens, camadas, descartar_fora_da_caixa, cores, separar_por_cor,
+                   sem_textos_e_hachuras, escolhidas, registrar):
+    """O resto de cad_para_qgis, com o DXF na mao (`caminho_dxf`). `entrada` e o arquivo que a
+    pessoa escolheu (.dxf ou .dwg): as imagens do desenho se procuram junto dele."""
     epsg_destino = int(epsg_destino or epsg_origem)
     transformador = _transformador(epsg_origem, epsg_destino)
     if transformador:
@@ -773,9 +857,23 @@ def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None
 
     # o que o GDAL nao entrega: largura dos quadros de MTEXT e as imagens
     extras = dxf_extras.ler(caminho_dxf)
+    if camadas is not None:
+        extras["imagens"] = [i for i in extras["imagens"] if i.get("camada") in camadas]
+    fora_da_caixa = 0
+    sem_texto_hachura = 0            # textos e hachuras deixados de fora a pedido
+
+    def saida_de(camada, hex_cor):
+        """O nome da camada de saida: com a cor, se a camada foi separada por cor."""
+        if camada in separar_por_cor:
+            return "%s_%s" % (camada, dxf_estilo.nome_da_cor(hex_cor).lstrip("#"))
+        return camada
     # e o que ele entrega errado: hachuras e texto formatado (ver cad_ezdxf.py)
     desenho = cad_ezdxf.ler(caminho_dxf, registrar)
     indice_mtext = cad_ezdxf.IndiceMtext(desenho["mtexts"]) if desenho else None
+    # A cor de cada hachura vem do ezdxf (que le as hachuras do jeito certo): o GDAL erra
+    # a de algumas, e a lista de camadas agrupa por cor.
+    cor_da_hachura = {str(h["handle"]).upper(): dxf_estilo.para_hex(h["cor"])
+                      for h in (desenho["hachuras"] if desenho else ())}
 
     grupos = {}
     grupos_papel = {}     # o que esta no espaco de papel (a folha de impressao)
@@ -795,6 +893,8 @@ def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None
     # vem depois fica por cima. Ver _ordem_das_linhas.
     chaves_desenho = dxf_estilo.ordem_de_desenho(caminho_dxf)
     posicoes = {}
+    # Cota das splines (curvas de nivel): o GDAL as entrega sem Z.
+    cotas_splines = dxf_estilo.cotas_das_splines(caminho_dxf)
     # A fonte de cada TEXT (o GDAL diz "Arial" para as de traco) e o que e
     # preciso para acertar o tamanho da letra deles no fim (_ajustar_textos).
     fontes_textos = dxf_estilo.fontes_dos_textos(caminho_dxf)
@@ -808,13 +908,20 @@ def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None
             registrar("Aviso: nao consegui ler a cor entidade a entidade; "
                       "usando a cor de cada camada.")
 
-        for feicao in origem:
+        for n_feicao, feicao in enumerate(origem):
             bruta = feicao.get("geometry")
             if bruta is None:
                 ignoradas += 1
                 continue
             props = {campo: feicao["properties"].get(campo) for campo in CAMPOS_DXF}
             camada_cad = props.get("Layer") or "0"
+            escolhida = bool(escolhidas) and (
+                dxf_estilo.id_da_feicao(feicao, n_feicao) in escolhidas)
+            if camadas is not None and camada_cad not in camadas and not escolhida:
+                continue
+            if "AcDbSpline" in (props.get("SubClasses") or ""):
+                bruta = _com_cota_da_spline(
+                    bruta, cotas_splines.get((props.get("EntityHandle") or "").upper()))
             # O que esta no espaco de papel (a folha da aba Layout) vai para
             # um monte separado; decide-se no fim se entra (ver mais abaixo).
             destino = grupos_papel if feicao["properties"].get("PaperSpace") else grupos
@@ -832,9 +939,18 @@ def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None
             # foi assim que as cotas perderam as pontas de seta.
             eh_hatch = "AcDbHatch" in (props.get("SubClasses") or "")
             eh_hachura = eh_hatch or aparencia["hachura"]
+            if eh_hatch:
+                props[CAMPO_COR] = cor_da_hachura.get(
+                    (props.get("EntityHandle") or "").upper(), props[CAMPO_COR])
+            if (not escolhida and cores is not None and camada_cad in cores
+                    and props[CAMPO_COR] not in cores[camada_cad]):
+                continue
             if (eh_hatch and desenho is not None
                     and (props.get("EntityHandle") or "").upper() not in desenho["falhas"]):
                 continue      # quem cuida das hachuras e o ezdxf
+            if sem_textos_e_hachuras and eh_hachura:
+                sem_texto_hachura += 1
+                continue
             if camada_cad.lower() == "defpoints" and _tipo_base(bruta) == "Point":
                 # Pontos de definicao de cota: o AutoCAD os poe na camada
                 # Defpoints para montar a cota e nunca os imprime. No QGIS
@@ -846,9 +962,16 @@ def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None
                 if not geom.get("coordinates"):
                     ignoradas += 1
                     continue
+                if (descartar_fora_da_caixa
+                        and fora_da_area.todos_fora(geom["coordinates"], descartar_fora_da_caixa)):
+                    fora_da_caixa += 1
+                    continue
                 tipo = _tipo_base(geom)
                 p = dict(props)
                 if tipo == "Point" and (aparencia["rotulo"] or p.get("Text")):
+                    if sem_textos_e_hachuras:
+                        sem_texto_hachura += 1
+                        continue
                     # Texto do desenho. O ponto que o GDAL entrega nem sempre e
                     # onde o texto se ancora; _preparar_texto corrige, e separa
                     # as linhas de um MTEXT.
@@ -857,8 +980,10 @@ def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None
                     linhas, formatado, ajuste = _preparar_texto(
                         geom, p, aparencia, extras["mtext"], indice_mtext, fonte_cad)
                     if formatado:
-                        com_html.add(camada_cad if separar_por_camada else "")
-                    chave = (camada_cad if separar_por_camada else "", "Point", "Texto")
+                        com_html.add(saida_de(camada_cad, props[CAMPO_COR])
+                                     if separar_por_camada else "")
+                    chave = (saida_de(camada_cad, props[CAMPO_COR]) if separar_por_camada else "",
+                             "Point", "Texto")
                     for indice, (geom_linha, p_linha) in enumerate(linhas):
                         feicao = {"type": "Feature", "properties": p_linha,
                                   "geometry": _geometria_reprojetada(geom_linha, transformador)}
@@ -886,7 +1011,8 @@ def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None
                 else:
                     subtipo = tipo
                 geom = _geometria_reprojetada(geom, transformador)
-                chave = (camada_cad if separar_por_camada else "", tipo, subtipo)
+                chave = (saida_de(camada_cad, props[CAMPO_COR]) if separar_por_camada else "",
+                         tipo, subtipo)
                 feicao = {"type": "Feature", "geometry": geom, "properties": p}
                 destino.setdefault(chave, []).append(feicao)
                 if aparencia["oculta"]:
@@ -899,8 +1025,23 @@ def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None
         registrar("Aviso: nao consegui acertar o tamanho de alguns textos (%s)." % erro)
 
     if desenho is not None:
-        texturas = _acrescentar_hachuras(grupos, desenho["hachuras"], transformador,
-                                         separar_por_camada, ocultas)
+        hachuras = desenho["hachuras"]
+        if camadas is not None:
+            hachuras = [h for h in hachuras if h["camada"] in camadas]
+        if sem_textos_e_hachuras:
+            sem_texto_hachura += len(hachuras)
+            hachuras = []
+        if cores is not None:
+            hachuras = [h for h in hachuras if h["camada"] not in cores
+                        or dxf_estilo.para_hex(h["cor"]) in cores[h["camada"]]]
+        if descartar_fora_da_caixa:
+            dentro = [h for h in hachuras if not fora_da_area.todos_fora(
+                h.get("linhas") or h.get("poligonos"), descartar_fora_da_caixa)]
+            fora_da_caixa += len(hachuras) - len(dentro)
+            hachuras = dentro
+        texturas = _acrescentar_hachuras(grupos, hachuras, transformador,
+                                         separar_por_camada, ocultas,
+                                         saida_de=saida_de)
         if texturas:
             registrar("%d hachuras com padrao desenhadas linha a linha." % texturas)
 
@@ -935,7 +1076,9 @@ def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None
     for chave in list(grupos):
         feicoes = grupos[chave]
         escondidas = [f for f in feicoes if id(f) in ocultas]
-        if escondidas and len(escondidas) < len(feicoes):
+        # Juntando por tipo (um arquivo de pontos, um de linhas...), as desligadas ficam
+        # nos mesmos arquivos: separar viraria arquivos "oculto_*" a mais.
+        if separar_por_camada and escondidas and len(escondidas) < len(feicoes):
             grupos[chave] = [f for f in feicoes if id(f) not in ocultas]
             _c, _t, _s = chave
             grupos.setdefault(((_c + "_" if _c else "") + "oculto", _t, _s), []).extend(escondidas)
@@ -987,7 +1130,11 @@ def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None
     extensao = tuple(caixa) if caixa[0] < caixa[2] else None
 
     projeto = None
-    if gerar_projeto and (camadas_projeto or camadas_imagem):
+    # Shapefile e GeoJSON sao um arquivo por camada, e nenhum guarda estilo: cada um
+    # ganha um .qml ao lado, que o QGIS aplica sozinho ao abrir o arquivo. Sem ele, quem
+    # arrasta so o .shp para o QGIS ve uma cor sorteada. No GPKG o estilo vai dentro.
+    escreve_qml = formato != "GPKG"
+    if camadas_projeto and (gerar_projeto or escreve_qml):
         com_texto = 0
         estilo_ponto = dxf_estilo.estilo_de_ponto(caminho_dxf)
         for camada in camadas_projeto:
@@ -1026,6 +1173,18 @@ def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None
             registrar("Textos em %d camadas, na posicao, tamanho e rotacao do desenho."
                       % com_texto)
 
+    if escreve_qml:
+        pasta_dados = os.path.splitext(saida)[0]
+        try:
+            for camada in camadas_projeto:
+                qgis_project.gerar_qml(os.path.join(pasta_dados, camada["nome"] + ".qml"), camada)
+        except Exception as erro:
+            # Como o projeto, o estilo e uma conveniencia: os dados ja estao salvos.
+            registrar("Aviso: nao consegui gravar o estilo (.qml) ao lado dos dados (%s). "
+                      "Os dados foram convertidos normalmente, mas o QGIS vai sortear as cores."
+                      % erro)
+
+    if gerar_projeto and (camadas_projeto or camadas_imagem):
         try:
             projeto = qgis_project.gerar_qgs(
                 caminho_qgs, camadas_projeto + camadas_imagem, epsg_destino, extensao)
@@ -1045,6 +1204,11 @@ def cad_para_qgis(entrada, saida, epsg_origem, formato="GPKG", epsg_destino=None
     if defpoints:
         registrar("%d pontos de definicao de cota (camada Defpoints) ficaram de fora: "
                   "o AutoCAD tambem nao os imprime." % defpoints)
+    if fora_da_caixa:
+        registrar("%d feicoes longe do desenho (fora da area principal) ficaram de fora."
+                  % fora_da_caixa)
+    if sem_texto_hachura:
+        registrar("%d textos e hachuras ficaram de fora, como pedido." % sem_texto_hachura)
 
     return {"arquivos": gerados, "feicoes": total, "projeto": projeto,
             "imagens": len(camadas_imagem),
@@ -1308,6 +1472,11 @@ def _gravar_grupos(grupos, saida, formato, epsg, registrar, ordem=None):
             # texto no DBF tem no maximo 254 caracteres (o padrao do Fiona e 80)
             esquema["properties"] = {ABREVIACOES_SHP.get(k, k): ("str:254" if v == "str" else v)
                                      for k, v in esquema["properties"].items()}
+            # A camada declarada 2D faz o driver jogar o Z fora: era assim que a
+            # cota das curvas de nivel e dos pontos altimetricos se perdia. So
+            # vira 3D onde alguma feicao tem cota (simbolo e texto ficam 2D).
+            if any(_tem_cota(f["geometry"]["coordinates"]) for f in feicoes):
+                esquema["geometry"] = "3D " + esquema["geometry"]
             destino_shp = os.path.join(pasta, nome + ".shp")
             with fiona.open(destino_shp, "w", driver="ESRI Shapefile", crs=crs,
                             encoding="utf-8", schema=esquema) as destino:

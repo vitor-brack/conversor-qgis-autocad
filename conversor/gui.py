@@ -10,6 +10,7 @@ import webbrowser
 from tkinter import filedialog, messagebox, ttk
 
 from . import __version__, config, convert, crs_presets, dwg, dxfio
+from .gui_camadas import PainelCamadas, contar_escolhidas
 
 SEM_ROTULO = "(nenhum)"
 POR_CAMADA = "(usar o nome da camada de origem)"
@@ -404,6 +405,13 @@ class AbaCadParaQgis(ttk.Frame):
                    ).grid(row=0, column=1, padx=(8, 0))
         self.aviso_dwg = ttk.Label(caixa, text="", foreground="#b35c00", wraplength=600)
         self.aviso_dwg.grid(row=1, column=0, columnspan=2, sticky="w")
+        self.entrada.bind("<Return>", lambda _e: self._atualizar_painel())
+        self.entrada.bind("<FocusOut>", lambda _e: self._atualizar_painel())
+        self.escolher_camadas = tk.BooleanVar(value=False)
+        ttk.Checkbutton(caixa, text="Escolher as camadas que vao para a conversao "
+                                    "(mostra o desenho ao lado)",
+                        variable=self.escolher_camadas, command=self._alternar_camadas
+                        ).grid(row=2, column=0, columnspan=2, sticky="w", pady=(6, 0))
         linha += 1
 
         caixa = ttk.LabelFrame(self, text=" 2. Em que coordenadas o desenho esta ",
@@ -444,6 +452,10 @@ class AbaCadParaQgis(ttk.Frame):
                                     "(para calcular area; deixe desmarcado se "
                                     "forem curvas de nivel)", variable=self.fechadas
                         ).grid(row=13, column=0, sticky="w")
+        self.sem_textos = tk.BooleanVar(value=app.cfg["sem_textos_e_hachuras"])
+        ttk.Checkbutton(caixa, text="Nao levar textos nem hachuras (juntando as camadas "
+                                    "em um arquivo por tipo, saem so pontos, linhas e areas)",
+                        variable=self.sem_textos).grid(row=17, column=0, sticky="w")
         self.imagens = tk.BooleanVar(value=app.cfg["incluir_imagens"])
         ttk.Checkbutton(caixa, text="Trazer as imagens do desenho (logotipos, "
                                     "fotos) - o arquivo da imagem precisa estar "
@@ -474,6 +486,113 @@ class AbaCadParaQgis(ttk.Frame):
         self.botao = ttk.Button(self, text="CONVERTER PARA QGIS",
                                 command=self.converter, style="Grande.TButton")
         self.botao.grid(row=linha, column=0, sticky="we", ipady=6)
+        # uma linha vazia embaixo dos passos fica com a altura que sobra na aba: os passos
+        # ficam juntos em cima e o painel ao lado (que ocupa ate ela) vai ate embaixo. Sem
+        # ela o painel parava na altura dos passos, e ampliado ficava com 300 pixels. Com o
+        # desenho aberto, o quadro "O que aconteceu" mora nela (ver App.registro_ao_lado)
+        self.rowconfigure(linha + 1, weight=1)
+        self.linha_do_registro = linha + 1
+        self._linhas = linha + 2
+
+        # a lista de camadas com o desenho: so entra na janela quando a pessoa pede
+        self.painel = PainelCamadas(self, ao_registrar=app.registrar,
+                                    ao_ampliar=self._ao_ampliar)
+        self._geometria_antes = None
+        self._formulario = ()
+        self._maximizei = False
+
+    def _alternar_camadas(self):
+        # com o desenho ao lado, o quadro "O que aconteceu" vai para baixo dos passos e o
+        # desenho fica com a altura toda da janela
+        registro_ao_lado = getattr(self.app, "registro_ao_lado", lambda _aba: None)
+        if self.escolher_camadas.get():
+            self.painel.grid(row=0, column=1, rowspan=self._linhas, sticky="nsew",
+                             padx=(12, 0))
+            self.columnconfigure(1, weight=1, minsize=600)
+            registro_ao_lado(self)
+            self._ajustar_janela(True)
+            self._atualizar_painel()
+        else:
+            self.painel.ampliar(False)          # os passos voltam antes do painel sair
+            self.painel.grid_remove()
+            self.columnconfigure(1, weight=0, minsize=0)
+            registro_ao_lado(None)
+            self._ajustar_janela(False)
+
+    def _ao_ampliar(self, ligado):
+        """O desenho ampliado ocupa a janela: os passos da conversao e o quadro "O que
+        aconteceu" saem da frente e a janela maximiza. Ao voltar, tudo volta como estava
+        (a janela so sai do maximizado se fui eu que maximizei)."""
+        topo = self.winfo_toplevel()
+        mostrar_registro = getattr(self.app, "mostrar_registro", None)
+        if ligado:
+            # so os passos (o quadro "O que aconteceu", que pode estar nesta coluna, e da
+            # janela: mostrar_registro cuida dele)
+            self._formulario = [w for w in self.grid_slaves(column=0) if w.master is self]
+            for parte in self._formulario:
+                parte.grid_remove()
+            self.columnconfigure(0, weight=0)
+            self.painel.grid_configure(padx=0)
+            if mostrar_registro:
+                mostrar_registro(False)
+            # janela escondida (os testes) nao pode aparecer por causa disto
+            self._maximizei = False
+            try:
+                if topo.winfo_viewable() and topo.state() == "normal":
+                    topo.state("zoomed")
+                    self._maximizei = True
+            except tk.TclError:
+                pass
+        else:
+            for parte in self._formulario:
+                parte.grid()
+            self._formulario = ()
+            self.columnconfigure(0, weight=1)
+            self.painel.grid_configure(padx=(12, 0))
+            if mostrar_registro:
+                mostrar_registro(True)
+            if self._maximizei:
+                self._maximizei = False
+                try:
+                    topo.state("normal")
+                except tk.TclError:
+                    pass
+
+    def _ajustar_janela(self, com_painel):
+        """Alarga a janela para caber o painel e volta ao tamanho de antes ao fechar.
+        Janela maximizada ja tem espaco: nao mexe."""
+        topo = self.winfo_toplevel()
+        try:
+            if topo.state() == "zoomed":
+                return
+        except tk.TclError:
+            return
+        tela_l, tela_a = topo.winfo_screenwidth(), topo.winfo_screenheight()
+        if com_painel:
+            self._geometria_antes = (topo.winfo_width(), topo.winfo_height())
+            topo.minsize(min(1180, tela_l - 40), 700)
+            topo.geometry("%dx%d" % (min(max(topo.winfo_width(), 1400), tela_l - 40),
+                                     min(max(topo.winfo_height(), 960), tela_a - 80)))
+        else:
+            topo.minsize(700, 700)
+            if self._geometria_antes and self._geometria_antes[0] > 1:
+                topo.geometry("%dx%d" % self._geometria_antes)
+
+    def _atualizar_painel(self):
+        """Faz o painel mostrar o desenho que esta no campo do passo 1."""
+        if not self.escolher_camadas.get():
+            return
+        caminho = self.entrada.get().strip()
+        if not caminho or not os.path.isfile(caminho):
+            if self.painel.estado != "vazio":
+                self.painel.limpar()
+            return
+        if caminho == self.painel.caminho and self.painel.estado != "vazio":
+            return                      # ja esta mostrando (ou lendo) este
+        epsg = self.crs_origem.obter()
+        self.painel.unidade_em_metros = (crs_presets.eh_projetado(epsg)
+                                         if epsg and crs_presets.valido(epsg) else True)
+        self.painel.carregar(caminho)
 
     def _alternar_reproj(self):
         estado = "normal" if self.reprojetar.get() else "disabled"
@@ -509,6 +628,7 @@ class AbaCadParaQgis(ttk.Frame):
         else:
             self.rotulo_detectado.config(text="")
         self._sugerir_saida()
+        self._atualizar_painel()
 
     def _sugerir_saida(self):
         entrada = self.entrada.get().strip()
@@ -553,26 +673,75 @@ class AbaCadParaQgis(ttk.Frame):
                 webbrowser.open(dwg.LINK_DOWNLOAD)
             return
 
+        camadas = caixa = dxf_pronto = cores = separar_por_cor = feicoes = None
+        n_linhas = n_textos = 0
+        if self.escolher_camadas.get():
+            if not (self.painel.pronto and self.painel.caminho == entrada):
+                messagebox.showwarning(
+                    "Camadas",
+                    "Aguarde: o programa ainda nao terminou de ler as camadas do desenho.\n\n"
+                    "Quando a lista aparecer ao lado, marque as camadas e converta de novo. "
+                    "Para converter tudo, desmarque \"Escolher as camadas\".")
+                return
+            escolha = self.painel.selecao()
+            if not escolha["camadas"] and not escolha["feicoes"]:
+                messagebox.showwarning(
+                    "Nenhuma camada marcada",
+                    "Marque na lista, ao lado, ao menos uma camada para converter, ou clique "
+                    "numa linha do desenho (ou num texto).")
+                return
+            camadas, caixa, dxf_pronto = escolha["camadas"], escolha["caixa"], escolha["dxf"]
+            cores, separar_por_cor = escolha["cores"], escolha["separar_por_cor"]
+            feicoes, n_linhas = escolha["feicoes"], escolha["linhas"]
+            n_textos = escolha.get("textos", 0)
+
         self.app.cfg["epsg_cad"] = epsg_origem
         self.app.cfg["formato_saida"] = self.formato.get()
         self.app.cfg["separar_por_camada"] = self.separar.get()
         self.app.cfg["polilinha_fechada_vira_area"] = self.fechadas.get()
+        self.app.cfg["sem_textos_e_hachuras"] = self.sem_textos.get()
         self.app.cfg["gerar_projeto_qgis"] = self.gerar_projeto.get()
         self.app.cfg["incluir_imagens"] = self.imagens.get()
         destino = self.crs_destino.obter() if self.reprojetar.get() else None
         if destino:
             self.app.cfg["epsg_qgis"] = destino
 
-        self.app.executar(
-            self.botao,
-            lambda registrar: convert.cad_para_qgis(
-                entrada=entrada, saida=saida, epsg_origem=epsg_origem,
-                formato=self.formato.get(), epsg_destino=destino,
-                separar_por_camada=self.separar.get(),
-                poli_fechada_como_poligono=self.fechadas.get(),
-                gerar_projeto=self.gerar_projeto.get(),
-                incluir_imagens=self.imagens.get(),
-                registrar=registrar))
+        painel = self.painel
+        # Enquanto converte, o DXF temporario do painel nao pode ser apagado. A
+        # protecao comeca ja aqui, no clique: se so comecasse na thread, trocar
+        # de desenho antes de ela iniciar apagaria o arquivo que ela vai usar.
+        painel.em_uso += 1
+
+        def tarefa(registrar):
+            try:
+                if camadas:
+                    registrar("%d camadas escolhidas na lista." % len(camadas))
+                if n_linhas or n_textos:
+                    registrar("%s no desenho." % contar_escolhidas(n_linhas, n_textos))
+                if n_textos and self.sem_textos.get():
+                    registrar("Aviso: %s no desenho ficam de fora, porque a opcao \"Nao levar "
+                              "textos nem hachuras\" esta marcada."
+                              % ("o texto escolhido" if n_textos == 1
+                                 else "os %d textos escolhidos" % n_textos))
+                return convert.cad_para_qgis(
+                    entrada=entrada, saida=saida, epsg_origem=epsg_origem,
+                    formato=self.formato.get(), epsg_destino=destino,
+                    separar_por_camada=self.separar.get(),
+                    poli_fechada_como_poligono=self.fechadas.get(),
+                    gerar_projeto=self.gerar_projeto.get(),
+                    incluir_imagens=self.imagens.get(),
+                    camadas=camadas, descartar_fora_da_caixa=caixa,
+                    dxf_pronto=dxf_pronto, cores=cores, separar_por_cor=separar_por_cor,
+                    sem_textos_e_hachuras=self.sem_textos.get(),
+                    feicoes_escolhidas=feicoes, registrar=registrar)
+            finally:
+                painel.em_uso -= 1
+
+        try:
+            self.app.executar(self.botao, tarefa)
+        except Exception:
+            painel.em_uso -= 1            # a thread nem chegou a existir
+            raise
 
 
 class App(tk.Tk):
@@ -592,15 +761,19 @@ class App(tk.Tk):
             pass
         estilo.configure("Grande.TButton", font=("Segoe UI", 11, "bold"))
 
-        abas = ttk.Notebook(self)
+        abas = self._abas = ttk.Notebook(self)
         abas.pack(fill="both", expand=True, padx=8, pady=(8, 0))
         self.aba1 = AbaQgisParaCad(abas, self)
         self.aba2 = AbaCadParaQgis(abas, self)
         abas.add(self.aba1, text="   QGIS  →  AutoCAD   ")
         abas.add(self.aba2, text="   AutoCAD  →  QGIS   ")
 
-        caixa = ttk.LabelFrame(self, text=" O que aconteceu ", padding=6)
-        caixa.pack(fill="both", expand=False, padx=8, pady=8)
+        caixa = self._caixa_do_registro = ttk.LabelFrame(self, text=" O que aconteceu ",
+                                                         padding=6)
+        self._registro_visivel = True
+        self._registro_na_aba = None         # a aba com o desenho aberto (ver registro_ao_lado)
+        self._posicionar_registro()
+        abas.bind("<<NotebookTabChanged>>", lambda _e: self._posicionar_registro())
         self.log = tk.Text(caixa, height=9, wrap="word", state="disabled",
                            font=("Consolas", 9), background="#f7f7f7")
         self.log.pack(side="left", fill="both", expand=True)
@@ -613,6 +786,33 @@ class App(tk.Tk):
         self.registrar("Pronto. O DXF funciona sem instalar mais nada; "
                        ".dwg precisa do ODA File Converter (%s)."
                        % ("instalado" if dwg.disponivel() else "nao instalado"))
+
+    def mostrar_registro(self, mostrar):
+        """Mostra ou esconde o quadro "O que aconteceu" (o desenho ampliado usa o espaco)."""
+        self._registro_visivel = bool(mostrar)
+        self._posicionar_registro()
+
+    def registro_ao_lado(self, aba):
+        """Com o desenho aberto ao lado dos passos da `aba`, o quadro "O que aconteceu" sai de
+        baixo das abas (onde ocupava a largura toda) e vai para baixo dos passos, na coluna
+        deles, onde sobrava espaco: o desenho fica com a altura toda da janela. Na outra aba,
+        ou com None (desenho fechado), ele volta para baixo das abas."""
+        self._registro_na_aba = aba
+        self._posicionar_registro()
+
+    def _posicionar_registro(self):
+        caixa = self._caixa_do_registro
+        caixa.pack_forget()
+        caixa.grid_forget()
+        if not self._registro_visivel:
+            return
+        aba = self._registro_na_aba
+        if aba is not None and str(self._abas.select()) == str(aba):
+            caixa.grid(in_=aba, row=aba.linha_do_registro, column=0, sticky="nsew",
+                       pady=(4, 0))
+            caixa.lift()
+        else:
+            caixa.pack(fill="both", expand=False, padx=8, pady=8)
 
     def registrar(self, texto):
         self.log.config(state="normal")
@@ -691,6 +891,7 @@ class App(tk.Tk):
 
     def fechar(self):
         config.salvar(self.cfg)
+        self.aba2.painel.liberar(forcar=True)      # copias do DWG que o ODA deixou
         self.destroy()
 
 
