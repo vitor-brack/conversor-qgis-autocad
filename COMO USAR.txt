@@ -27,8 +27,16 @@ atalho.
    Se o desenho foi feito por este mesmo programa, ele
    descobre sozinho e avisa na tela.
 
-4. Escolha o formato de saida (GeoPackage e o mais pratico) e
-   clique em CONVERTER PARA QGIS.
+4. Escolha o formato de saida (GeoPackage e o mais pratico).
+
+   Em "Onde salvar", o programa ja sugere a pasta do proprio
+   desenho e o nome "<desenho>_qgis". Para trocar o nome, clique
+   no campo "Nome" e digite (so o nome, sem caminho e sem
+   ".gpkg"). Para salvar em outra pasta, use "Escolher pasta...".
+   Se ja existir um arquivo com esse nome, o programa avisa
+   embaixo do campo que ele sera substituido.
+
+   Depois, clique em CONVERTER PARA QGIS.
 
 5. No fim o programa avisa qual arquivo abrir. De dois cliques
    no arquivo .qgs que ele criou.
