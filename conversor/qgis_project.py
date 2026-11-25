@@ -409,6 +409,32 @@ def _camada_vetorial(camada, srs):
            _rotulagem_texto(camada.get("html", False)) if texto else ""))
 
 
+def gerar_qml(caminho_qml, camada):
+    """Escreve o estilo de UMA camada num .qml, para ficar ao lado do dado.
+
+    Um shapefile nao guarda estilo: aberto sozinho (arrastado para o QGIS, ou
+    por Camada > Adicionar Camada), o QGIS sorteia uma cor. Mas ele procura um
+    .qml com o mesmo nome do arquivo e, achando, aplica sozinho -- e assim a cor
+    do AutoCAD chega mesmo a quem nunca abre o .qgs. E o mesmo simbolo e a mesma
+    rotulagem do projeto (_renderizador e _rotulagem_texto), so que sem o resto.
+
+    `camada` e o dict de gerar_qgs (cores, campo_cor, texto, hachura...).
+    """
+    texto = bool(camada.get("texto"))
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        "<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>\n"
+        '<qgis version="3.28.0" labelsEnabled="%d" styleCategories="AllStyleCategories">'
+        '%s%s'
+        '<blendMode>0</blendMode><featureBlendMode>0</featureBlendMode>'
+        '</qgis>\n'
+        % (1 if texto else 0, _renderizador(camada),
+           _rotulagem_texto(camada.get("html", False)) if texto else ""))
+    with open(caminho_qml, "w", encoding="utf-8") as fp:
+        fp.write(xml)
+    return caminho_qml
+
+
 def _camada_raster(camada):
     """Imagem georreferenciada. O renderizador fica por conta do QGIS: para
     imagem de 8 bits ele usa as cores do arquivo sem realce de contraste,
