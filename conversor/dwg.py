@@ -16,6 +16,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import threading
 
 LINK_DOWNLOAD = "https://www.opendesign.com/guestfiles/oda_file_converter"
 
@@ -63,6 +64,99 @@ class ErroDWG(Exception):
     pass
 
 
+# O que esta em andamento agora: as pastas e os arquivos do TEMP com copia do desenho do
+# cliente (ou de um pedaco dele) e os ODA rodando. Quem cria isso e uma thread de trabalho;
+# sem este registro, fechar o programa antes de a thread terminar deixava a copia no TEMP
+# sem que ninguem soubesse dela. `encerrar` apaga tudo isto.
+_trava = threading.Lock()
+_temporarios = set()
+_canceladas = set()        # pastas que `encerrar` varreu: nenhum ODA pode mais rodar nelas
+_processos = set()
+
+
+def _nova_pasta(prefixo):
+    pasta = tempfile.mkdtemp(prefix=prefixo)
+    with _trava:
+        _temporarios.add(pasta)
+    return pasta
+
+
+def _esquecer(pasta):
+    with _trava:
+        _temporarios.discard(pasta)
+        _canceladas.discard(pasta)
+
+
+def anotar_temporario(caminho):
+    """Registra um arquivo temporario da leitura do desenho (a copia filtrada do ezdxf, a do
+    GDAL, o VRT). Quem o criou o apaga ao terminar; isto so cobre o programa fechar antes.
+    Devolve o proprio caminho."""
+    with _trava:
+        _temporarios.add(caminho)
+    return caminho
+
+
+def _apagar_do_disco(caminho):
+    if os.path.isdir(caminho):
+        shutil.rmtree(caminho, ignore_errors=True)
+    else:
+        try:
+            os.remove(caminho)
+        except OSError:
+            pass
+
+
+def encerrar():
+    """O programa esta fechando: encerra o ODA que ainda roda e apaga o que ficou no TEMP com
+    copia do desenho do cliente (a leitura ainda nao tinha terminado, por exemplo)."""
+    with _trava:
+        processos, pastas = list(_processos), list(_temporarios)
+        _canceladas.update(pastas)         # a thread que ainda ia lancar o ODA desiste
+    for processo in processos:
+        try:
+            if processo.poll() is None:
+                processo.kill()
+                processo.wait(timeout=5)       # solta os arquivos antes de apagar
+        except Exception:
+            pass
+    presas = []
+    for pasta in pastas:
+        _apagar_do_disco(pasta)
+        if os.path.lexists(pasta):
+            presas.append(pasta)
+        else:
+            with _trava:
+                # a marca em _canceladas fica: so a thread dona da pasta a tira (_esquecer)
+                _temporarios.discard(pasta)
+    if presas:
+        _apagar_depois_que_eu_sair(presas)
+
+
+def _apagar_depois_que_eu_sair(caminhos):
+    """No Windows arquivo aberto nao se apaga, e a leitura do desenho segura o DXF aberto
+    ate acabar. Um cmd escondido espera o programa terminar de sair e apaga."""
+    if os.name != "nt":
+        return
+    apagar = " & ".join(('rmdir /s /q "%s"' if os.path.isdir(c) else 'del /f /q "%s"') % c
+                        for c in caminhos)
+    info = subprocess.STARTUPINFO()
+    info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    info.wShowWindow = subprocess.SW_HIDE
+    try:
+        # /s faz o cmd tirar so as aspas de fora, entao os caminhos podem ter espaco
+        subprocess.Popen('cmd /s /c "ping -n 5 127.0.0.1 >nul & %s"' % apagar,
+                         creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS,
+                         startupinfo=info, close_fds=True, stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        pass
+
+
+def _conferir_cancelamento(pasta):
+    if pasta in _canceladas:
+        raise ErroDWG("O programa foi fechado.")
+
+
 def _executar(entrada_dir, saida_dir, versao, formato, filtro):
     exe = localizar_oda()
     if not exe:
@@ -70,46 +164,113 @@ def _executar(entrada_dir, saida_dir, versao, formato, filtro):
 
     comando = [exe, entrada_dir, saida_dir, versao, formato, "0", "1", filtro]
 
-    # O ODA e um programa de janela; roda e fecha sozinho. Escondemos a janela
-    # para nao piscar na cara do usuario.
-    flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+    # O ODA e um programa de janela (Qt); roda e fecha sozinho. CREATE_NO_WINDOW so
+    # esconde console e nao basta: o que esconde a janela dele e o STARTUPINFO pedir
+    # SW_HIDE, que vale para a primeira janela do processo. Medido com o ODA 27.10:
+    # sem isso a janela fica visivel durante a conversao; com isso nunca fica.
+    flags = 0
+    info = None
+    if os.name == "nt":
+        flags = subprocess.CREATE_NO_WINDOW
+        info = subprocess.STARTUPINFO()
+        info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        info.wShowWindow = subprocess.SW_HIDE
+    pasta = os.path.dirname(entrada_dir)
+    processo = None
     try:
-        subprocess.run(comando, timeout=600, creationflags=flags,
-                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        _conferir_cancelamento(pasta)
+        processo = subprocess.Popen(comando, creationflags=flags, startupinfo=info,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        with _trava:
+            _processos.add(processo)
+            cancelada = pasta in _canceladas
+        if cancelada:                      # `encerrar` rodou entre o teste de cima e o Popen
+            processo.kill()
+            processo.wait(timeout=5)
+            raise ErroDWG("O programa foi fechado.")
+        processo.communicate(timeout=600)
     except subprocess.TimeoutExpired:
+        processo.kill()
+        processo.communicate()
         raise ErroDWG("O ODA File Converter demorou demais (mais de 10 minutos) "
                       "e foi interrompido. O arquivo pode ser grande demais.")
+    except ErroDWG:
+        raise
     except Exception as erro:
         raise ErroDWG("Falha ao executar o ODA File Converter: %s" % erro)
+    finally:
+        with _trava:
+            _processos.discard(processo)
+
+
+PREFIXO_TEMPORARIO = "conv_dwg_"
 
 
 def dwg_para_dxf(caminho_dwg, registrar=None):
-    """Converte um .dwg em .dxf temporario. Devolve o caminho do .dxf."""
-    pasta = tempfile.mkdtemp(prefix="conv_dwg_")
-    entrada = os.path.join(pasta, "entrada")
-    saida = os.path.join(pasta, "saida")
-    os.makedirs(entrada)
-    os.makedirs(saida)
+    """Converte um .dwg em .dxf temporario. Devolve o caminho do .dxf.
 
-    nome = os.path.basename(caminho_dwg)
-    shutil.copy2(caminho_dwg, os.path.join(entrada, nome))
+    O .dxf fica numa pasta do TEMP com uma copia do desenho do cliente: quem chama apaga
+    com apagar_temporario quando nao precisar mais. Se a conversao falha, a pasta ja sai
+    apagada."""
+    pasta = _nova_pasta(PREFIXO_TEMPORARIO)
+    try:
+        _conferir_cancelamento(pasta)            # nao recria o que `encerrar` acabou de apagar
+        entrada = os.path.join(pasta, "entrada")
+        saida = os.path.join(pasta, "saida")
+        os.makedirs(entrada)
+        os.makedirs(saida)
 
-    if registrar:
-        registrar("Convertendo %s para DXF com o ODA File Converter..." % nome)
-    _executar(entrada, saida, "ACAD2004", "DXF", "*.DWG")
+        nome = os.path.basename(caminho_dwg)
+        shutil.copy2(caminho_dwg, os.path.join(entrada, nome))
 
-    gerados = glob.glob(os.path.join(saida, "*.dxf")) + glob.glob(os.path.join(saida, "*.DXF"))
-    if not gerados:
-        raise ErroDWG(
-            "O ODA File Converter nao gerou nenhum DXF a partir de '%s'.\n"
-            "O arquivo pode estar corrompido, protegido por senha, ou nao ser "
-            "um DWG valido." % nome)
-    return gerados[0]
+        if registrar:
+            registrar("Convertendo %s para DXF com o ODA File Converter..." % nome)
+        _executar(entrada, saida, "ACAD2004", "DXF", "*.DWG")
+
+        gerados = (glob.glob(os.path.join(saida, "*.dxf"))
+                   + glob.glob(os.path.join(saida, "*.DXF")))
+        if not gerados:
+            raise ErroDWG(
+                "O ODA File Converter nao gerou nenhum DXF a partir de '%s'.\n"
+                "O arquivo pode estar corrompido, protegido por senha, ou nao ser "
+                "um DWG valido." % nome)
+        return gerados[0]
+    except BaseException:
+        shutil.rmtree(pasta, ignore_errors=True)
+        _esquecer(pasta)
+        raise
+
+
+def pasta_temporaria(caminho_dxf):
+    """A pasta do TEMP que dwg_para_dxf criou para `caminho_dxf`, ou None se ele nao e um
+    desses (um DXF que a pessoa escolheu, por exemplo)."""
+    pasta = os.path.dirname(os.path.dirname(os.path.abspath(caminho_dxf)))
+    return pasta if os.path.basename(pasta).startswith(PREFIXO_TEMPORARIO) else None
+
+
+def apagar_temporario(caminho_dxf):
+    """Apaga a pasta do TEMP de um DXF feito por dwg_para_dxf (a copia do desenho do
+    cliente). Nao mexe em nenhum outro arquivo."""
+    pasta = pasta_temporaria(caminho_dxf)
+    if pasta and os.path.isdir(pasta):
+        shutil.rmtree(pasta, ignore_errors=True)
+    if pasta:
+        _esquecer(pasta)
 
 
 def dxf_para_dwg(caminho_dxf, caminho_dwg_final, registrar=None):
-    """Converte um .dxf em .dwg, salvando no caminho pedido."""
-    pasta = tempfile.mkdtemp(prefix="conv_dxf_")
+    """Converte um .dxf em .dwg, salvando no caminho pedido. A pasta de trabalho do ODA,
+    no TEMP, sai apagada (deu certo ou nao)."""
+    pasta = _nova_pasta("conv_dxf_")
+    try:
+        return _dxf_para_dwg(pasta, caminho_dxf, caminho_dwg_final, registrar)
+    finally:
+        shutil.rmtree(pasta, ignore_errors=True)
+        _esquecer(pasta)
+
+
+def _dxf_para_dwg(pasta, caminho_dxf, caminho_dwg_final, registrar):
+    _conferir_cancelamento(pasta)
     entrada = os.path.join(pasta, "entrada")
     saida = os.path.join(pasta, "saida")
     os.makedirs(entrada)
