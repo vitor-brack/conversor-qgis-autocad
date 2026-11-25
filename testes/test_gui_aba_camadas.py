@@ -60,8 +60,7 @@ def esperar(raiz, condicao, segundos=15):
 def escolher(aba, caminho, saida):
     aba.entrada.delete(0, tk.END)
     aba.entrada.insert(0, caminho)
-    aba.saida.delete(0, tk.END)
-    aba.saida.insert(0, saida)
+    aba.saida.definir_saida(saida)
 
 
 def ligar(aba, raiz, caminho, saida):

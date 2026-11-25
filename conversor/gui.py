@@ -11,6 +11,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from . import __version__, config, convert, crs_presets, dwg, dxfio
 from .gui_camadas import PainelCamadas, contar_escolhidas
+from .gui_saida import CampoSaida
 
 SEM_ROTULO = "(nenhum)"
 POR_CAMADA = "(usar o nome da camada de origem)"
@@ -432,8 +433,8 @@ class AbaCadParaQgis(ttk.Frame):
         caixa.columnconfigure(0, weight=1)
         self.formato = tk.StringVar(value=app.cfg["formato_saida"])
         for i, (texto, valor) in enumerate(self.FORMATOS):
-            ttk.Radiobutton(caixa, text=texto, value=valor, variable=self.formato,
-                            command=self._sugerir_saida).grid(row=i, column=0, sticky="w")
+            ttk.Radiobutton(caixa, text=texto, value=valor, variable=self.formato
+                            ).grid(row=i, column=0, sticky="w")
 
         ttk.Separator(caixa, orient="horizontal").grid(row=9, column=0, sticky="we", pady=8)
         self.reprojetar = tk.BooleanVar(value=False)
@@ -474,13 +475,16 @@ class AbaCadParaQgis(ttk.Frame):
         self._alternar_reproj()
         linha += 1
 
-        caixa = ttk.LabelFrame(self, text=" 4. Salvar como ", padding=8)
+        caixa = ttk.LabelFrame(self, text=" 4. Onde salvar ", padding=8)
         caixa.grid(row=linha, column=0, sticky="we", pady=(0, 8))
         caixa.columnconfigure(0, weight=1)
-        self.saida = ttk.Entry(caixa)
+        # a pasta e o nome em campos separados: trocar o nome nao obriga a achar onde ele
+        # comeca no meio do caminho (ver gui_saida)
+        self.saida = CampoSaida(caixa, self.formato)
         self.saida.grid(row=0, column=0, sticky="we")
-        ttk.Button(caixa, text="Procurar...", command=self.escolher_saida, width=14
-                   ).grid(row=0, column=1, padx=(8, 0))
+        # a conversao grava o arquivo sem escrever em campo nenhum: o aviso "ja existe,
+        # sera substituido" so sabe disso se a janela avisar que a tarefa terminou
+        self.bind("<<TarefaTerminou>>", lambda _e: self.saida.atualizar())
         linha += 1
 
         self.botao = ttk.Button(self, text="CONVERTER PARA QGIS",
@@ -627,28 +631,8 @@ class AbaCadParaQgis(ttk.Frame):
                 text="Sistema encontrado num arquivo ao lado do desenho: EPSG:%s" % epsg)
         else:
             self.rotulo_detectado.config(text="")
-        self._sugerir_saida()
+        self.saida.sugerir(caminho)
         self._atualizar_painel()
-
-    def _sugerir_saida(self):
-        entrada = self.entrada.get().strip()
-        if not entrada:
-            return
-        base = os.path.splitext(entrada)[0]
-        extensoes = {"GPKG": ".gpkg", "ESRI Shapefile": "", "GeoJSON": ""}
-        self.saida.delete(0, tk.END)
-        self.saida.insert(0, base + "_qgis" + extensoes.get(self.formato.get(), ""))
-
-    def escolher_saida(self):
-        if self.formato.get() == "GPKG":
-            caminho = filedialog.asksaveasfilename(
-                title="Salvar GeoPackage", defaultextension=".gpkg",
-                filetypes=[("GeoPackage", "*.gpkg")])
-        else:
-            caminho = filedialog.askdirectory(title="Pasta onde salvar os arquivos")
-        if caminho:
-            self.saida.delete(0, tk.END)
-            self.saida.insert(0, caminho)
 
     def converter(self):
         entrada = self.entrada.get().strip()
@@ -656,10 +640,14 @@ class AbaCadParaQgis(ttk.Frame):
             messagebox.showwarning("Faltou a entrada",
                                    "Escolha um arquivo .dxf ou .dwg do AutoCAD.")
             return
-        saida = self.saida.get().strip()
-        if not saida:
-            messagebox.showwarning("Faltou a saida", "Escolha onde salvar o resultado.")
+        # o clique em CONVERTER nao tira o foco do campo do nome: arruma o que foi colado
+        self.saida.normalizar()
+        problema = self.saida.problema()
+        if problema:
+            messagebox.showwarning("Onde salvar", problema)
+            self.saida.focar_nome()
             return
+        saida = self.saida.caminho_saida()
         epsg_origem = self.crs_origem.obter()
         if not epsg_origem or not crs_presets.valido(epsg_origem):
             messagebox.showwarning("Coordenadas",
@@ -831,16 +819,24 @@ class App(tk.Tk):
                     botao, resultado = carga
                     botao.config(state="normal")
                     self.config(cursor="")
+                    self._tarefa_terminou()
                     self._avisar_sucesso(resultado)
                 elif tipo == "erro":
                     botao, mensagem = carga
                     botao.config(state="normal")
                     self.config(cursor="")
+                    self._tarefa_terminou()
                     self.registrar("ERRO: " + mensagem)
                     messagebox.showerror("Nao deu certo", mensagem)
         except queue.Empty:
             pass
         self.after(100, self._drenar)
+
+    def _tarefa_terminou(self):
+        """A conversao acabou, bem ou mal, e pode ter gravado arquivos: as abas conferem de
+        novo o que mostram deles. Antes da caixa de "Concluido", que espera resposta."""
+        for aba in (self.aba1, self.aba2):
+            aba.event_generate("<<TarefaTerminou>>")
 
     def _avisar_sucesso(self, resultado):
         arquivos = resultado.get("arquivos", [])

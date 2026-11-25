@@ -280,8 +280,7 @@ def esperar(raiz, condicao, segundos=15):
 def abrir(aba, raiz, caminho, saida):
     aba.entrada.delete(0, tk.END)
     aba.entrada.insert(0, caminho)
-    aba.saida.delete(0, tk.END)
-    aba.saida.insert(0, saida)
+    aba.saida.definir_saida(saida)
     aba.escolher_camadas.set(True)
     aba._alternar_camadas()
     assert esperar(raiz, lambda: aba.painel.estado == "pronto")

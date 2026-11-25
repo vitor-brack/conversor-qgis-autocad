@@ -153,3 +153,46 @@ def test_o_registro_continua_escrevendo(app):
     abrir_o_desenho(app)
     app.registrar("mensagem de teste")
     assert "mensagem de teste" in app.log.get("1.0", "end")
+
+
+# ---------------------------------------------------------------------------
+# O fim de uma conversao avisa as abas. O aviso "ja existe, sera substituido" do passo
+# "Onde salvar" depende disso: a conversao grava o arquivo sem escrever em nenhum campo
+# (e quem converte uma camada de cada vez, sem trocar o nome, e quem mais precisa do aviso).
+def _sem_janelas_de_aviso(monkeypatch):
+    from conversor import gui
+    monkeypatch.setattr(gui.messagebox, "askyesno", lambda *a, **k: False)
+    monkeypatch.setattr(gui.messagebox, "showerror", lambda *a, **k: None)
+
+
+def test_o_fim_da_conversao_atualiza_o_aviso_de_substituir(app, monkeypatch, tmp_path):
+    _sem_janelas_de_aviso(monkeypatch)
+    aba = app.aba2
+    destino = tmp_path / "camada_um.gpkg"
+    aba.formato.set("GPKG")
+    aba.saida.definir_saida(str(destino))
+    assert "substitu" not in aba.saida.aviso.cget("text").lower()
+
+    def tarefa(registrar):
+        destino.write_bytes(b"x")
+        return {"feicoes": 1, "arquivos": [str(destino)]}
+
+    app.executar(aba.botao, tarefa)
+    assert esperar(app, lambda: "substitu" in aba.saida.aviso.cget("text").lower())
+
+
+def test_a_conversao_que_falha_no_meio_tambem_atualiza_o_aviso(app, monkeypatch, tmp_path):
+    # falhou depois de gravar: o arquivo parcial existe e o proximo CONVERTER o substitui
+    from conversor import convert
+    _sem_janelas_de_aviso(monkeypatch)
+    aba = app.aba2
+    destino = tmp_path / "camada_dois.gpkg"
+    aba.formato.set("GPKG")
+    aba.saida.definir_saida(str(destino))
+
+    def tarefa(registrar):
+        destino.write_bytes(b"x")
+        raise convert.ErroConversao("falhou no meio")
+
+    app.executar(aba.botao, tarefa)
+    assert esperar(app, lambda: "substitu" in aba.saida.aviso.cget("text").lower())
