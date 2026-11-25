@@ -34,6 +34,8 @@ from contextlib import contextmanager
 import fiona
 import fiona.drvsupport
 
+from . import dwg
+
 # O Fiona mantem uma lista branca de drivers e o VRT nao entra nela por padrao.
 # O driver existe no GDAL embutido; so precisa ser declarado.
 fiona.drvsupport.supported_drivers.setdefault("OGR_VRT", "r")
@@ -99,12 +101,43 @@ def para_hex(rgb):
     return "#%02x%02x%02x" % tuple(rgb)
 
 
+# As cores basicas do AutoCAD, pelo nome. O "branco" (cor 7) o programa guarda como
+# preto, para fundo claro; as demais aparecem pelo codigo (#rrggbb).
+_NOMES_DE_COR = {"#ff0000": "vermelho", "#ffff00": "amarelo", "#00ff00": "verde",
+                 "#00ffff": "ciano", "#0000ff": "azul", "#ff00ff": "magenta",
+                 "#000000": "branco/preto"}
+
+
+def nome_da_cor(hex_cor):
+    """Como a cor se escreve na lista de camadas e no nome do arquivo."""
+    hex_cor = str(hex_cor).lower()
+    return _NOMES_DE_COR.get(hex_cor, hex_cor)
+
+
 # ---------------------------------------------------------------------------
 # Style string do OGR
 # ---------------------------------------------------------------------------
 
 _COR = re.compile(r"(?<![a-z])c:#([0-9a-fA-F]{6})([0-9a-fA-F]{2})?")
 _COR_PREENCHIMENTO = re.compile(r"fc:#([0-9a-fA-F]{6})([0-9a-fA-F]{2})?")
+# O tracejado da linha: PEN(...,p:"4.5g 2.25g"), traco, vao, traco, vao... ja multiplicado
+# pelo $LTSCALE do desenho. "g" e unidade do desenho; nao ha outra no DXF.
+_TRACEJADO = re.compile(r'(?<![a-z])p:"([^"]*)"')
+_MEDIDA = re.compile(r"(-?[0-9.]+(?:[eE][+-]?[0-9]+)?)\s*([a-z]*)")
+
+
+def _tracejado(estilo):
+    """(traco, vao, traco, vao...) em unidades do desenho, ou () para linha cheia."""
+    if not estilo.lstrip().startswith("PEN("):
+        return ()
+    achado = _TRACEJADO.search(estilo)
+    if not achado:
+        return ()
+    medidas = _MEDIDA.findall(achado.group(1))
+    if not medidas or any(unidade not in ("g", "") for _v, unidade in medidas):
+        return ()
+    valores = tuple(abs(float(v)) for v, _u in medidas)
+    return valores if len(valores) >= 2 and sum(valores) > 0 else ()
 
 
 def _parametro(estilo, nome, padrao=None):
@@ -134,11 +167,12 @@ def analisar_estilo(estilo):
     """
     vazio = {"cor": None, "tamanho": None, "rotulo": False, "hachura": False,
              "ancora": 1, "dx": 0.0, "dy": 0.0, "angulo": 0.0, "largura": 100.0,
-             "oculta": False, "fonte": None}
+             "oculta": False, "fonte": None, "tracejado": ()}
     if not estilo:
         return vazio
     achado = _COR.search(estilo) or _COR_PREENCHIMENTO.search(estilo)
     resultado = dict(vazio)
+    resultado["tracejado"] = _tracejado(estilo)
     resultado["cor"] = hex_para_rgb(achado.group(1)) if achado else None
     # O GDAL marca o que esta em camada desligada ou congelada com cor
     # inteiramente transparente (#rrggbb00). A cor de verdade fica nos seis
@@ -237,6 +271,16 @@ def detectar_codificacao(caminho):
 # Leitura das entidades com a cor ja resolvida
 # ---------------------------------------------------------------------------
 
+def id_da_feicao(feicao, posicao):
+    """O id que o GDAL da a uma feicao do DXF: um numero, o mesmo em toda leitura do mesmo
+    arquivo (o EntityHandle nao serve: repete nas feicoes de um bloco inserido varias vezes).
+    Sem id, vale a posicao da feicao na leitura."""
+    try:
+        return int(feicao.get("id"))
+    except (TypeError, ValueError):
+        return posicao
+
+
 @contextmanager
 def abrir_entidades(caminho_dxf, fundir_blocos=False, opcoes_extra=None):
     """Abre o DXF entregando, em cada feicao, o campo 'estilo' do OGR.
@@ -255,29 +299,132 @@ def abrir_entidades(caminho_dxf, fundir_blocos=False, opcoes_extra=None):
         opcoes["DXF_ENCODING"] = encoding_gdal
     opcoes.update(opcoes_extra or {})
 
-    vrt = None
+    vrt = copia = None
     try:
-        vrt = _escrever_vrt(caminho_dxf)
-        with fiona.Env(**opcoes):
-            with fiona.open(vrt) as origem:
-                yield origem, True
-    except Exception:
-        # Sem o VRT ainda da para converter; so as cores ficam por camada.
-        with fiona.Env(**opcoes):
-            with fiona.open(caminho_dxf) as origem:
-                yield origem, False
+        copia = _copia_que_o_gdal_entende(caminho_dxf)
+        fonte = copia or caminho_dxf
+        try:
+            vrt = _escrever_vrt(fonte)
+            with fiona.Env(**opcoes):
+                with fiona.open(vrt) as origem:
+                    yield origem, True
+        except Exception:
+            # Sem o VRT ainda da para converter; so as cores ficam por camada.
+            with fiona.Env(**opcoes):
+                with fiona.open(fonte) as origem:
+                    yield origem, False
     finally:
-        if vrt and os.path.exists(vrt):
-            try:
-                os.remove(vrt)
-            except OSError:
-                pass
+        for temporario in (vrt, copia):
+            if temporario and os.path.exists(temporario):
+                try:
+                    os.remove(temporario)
+                except OSError:
+                    pass
+
+
+# Ate o DXF 2007, a borda de hachura em spline termina nos pontos de controle (e nos pesos);
+# o numero de pontos de ajuste (grupo 97) so aparece no 2010. O GDAL le esse 97 em qualquer
+# versao: pega o 97 seguinte, o dos objetos de origem da borda, se perde e junta a hachura
+# com as entidades depois dela numa feicao so (geometria da hachura, handle da ultima). No
+# DWG do pai, convertido pelo ODA para o 2004, sumiam assim uma linha de chamada e uma
+# spline. A copia ganha um "97 0" (nenhum ponto de ajuste) onde ele falta.
+_HATCH = re.compile(rb"\n[ \t]*0[ \t]*\r?\nHATCH[ \t]*\r?\n")
+_CORPO_DA_SPLINE = frozenset((94, 73, 74, 95, 96, 40, 10, 20, 42))
+
+
+def _pares_da_entidade(dados, inicio):
+    """[(codigo, valor, posicao do codigo)] de uma entidade, a partir do primeiro codigo
+    depois do "0 / TIPO", ate o proximo codigo 0."""
+    pares = []
+    pos, fim = inicio, len(dados)
+    while pos < fim:
+        quebra = dados.find(b"\n", pos)
+        if quebra < 0:
+            break
+        quebra_valor = dados.find(b"\n", quebra + 1)
+        if quebra_valor < 0:
+            quebra_valor = fim
+        try:
+            codigo = int(dados[pos:quebra])
+        except ValueError:
+            break
+        if codigo == 0:
+            break
+        pares.append((codigo, dados[quebra + 1:quebra_valor].strip(), pos))
+        pos = quebra_valor + 1
+    return pares
+
+
+def _sem_ajuste(pares, k):
+    """True se a spline que terminou antes de pares[k] nao trouxe o 97 dos pontos de
+    ajuste: o que vem ali e outra aresta (72) ou o 97 dos objetos de origem da borda."""
+    if k >= len(pares) or pares[k][0] != 97:
+        return True
+    try:
+        n = int(pares[k][1])
+    except ValueError:
+        return True
+    depois = pares[k + 1][0] if k + 1 < len(pares) else 0
+    if n > 0:
+        return depois != 11              # ajuste: 11/21; objetos de origem: 330
+    return depois not in (12, 13, 72, 97)    # sem objetos de origem vem 92 ou 75
+
+
+def _onde_falta_o_97(dados):
+    """Posicoes (em bytes) em que falta o "97 0" das bordas em spline das hachuras."""
+    posicoes = []
+    for achado in _HATCH.finditer(dados):
+        pares = _pares_da_entidade(dados, achado.end())
+        for i, (codigo, valor, _pos) in enumerate(pares):
+            if codigo != 72 or valor != b"4":     # 72 = 4: aresta em spline
+                continue
+            k = i + 1
+            while k < len(pares) and pares[k][0] in _CORPO_DA_SPLINE:
+                k += 1
+            if _sem_ajuste(pares, k):
+                posicoes.append(pares[k][2] if k < len(pares) else None)
+    return [p for p in posicoes if p is not None]
+
+
+def _copia_que_o_gdal_entende(caminho_dxf):
+    """Caminho de uma copia temporaria do DXF com o 97 que o GDAL espera nas bordas em
+    spline das hachuras, ou None se o arquivo ja serve como esta."""
+    try:
+        with open(caminho_dxf, "rb") as fp:
+            dados = fp.read()
+    except OSError:
+        return None
+    if b"HATCH" not in dados:
+        return None
+    posicoes = _onde_falta_o_97(dados)
+    if not posicoes:
+        return None
+    quebra = b"\r\n" if b"\r\n" in dados[:200] else b"\n"
+    falta = b"97" + quebra + b"0" + quebra
+    descritor, caminho = tempfile.mkstemp(suffix=".dxf", prefix="conversor_")
+    dwg.anotar_temporario(caminho)             # se o programa fechar no meio da leitura
+    try:
+        with os.fdopen(descritor, "wb") as fp:
+            anterior = 0
+            for pos in posicoes:
+                fp.write(dados[anterior:pos])
+                fp.write(falta)
+                anterior = pos
+            fp.write(dados[anterior:])
+    except OSError:
+        try:
+            os.remove(caminho)
+        except OSError:
+            pass
+        return None
+    return caminho
 
 
 def _escrever_vrt(caminho_dxf):
     from xml.sax.saxutils import escape
     descritor, caminho = tempfile.mkstemp(suffix=".vrt", prefix="conversor_")
     os.close(descritor)
+    dwg.anotar_temporario(caminho)             # se o programa fechar no meio da leitura
     with open(caminho, "w", encoding="utf-8") as fp:
         fp.write('<OGRVRTDataSource><OGRVRTLayer name="entities">'
                  "<SrcDataSource>%s</SrcDataSource>"
@@ -350,6 +497,36 @@ def camadas_ocultas(caminho_dxf):
     except Exception:
         return set()
     return ocultas
+
+
+def cotas_das_splines(caminho_dxf):
+    """{handle: [Z de cada ponto de controle]} de cada SPLINE do desenho.
+
+    O GDAL le a spline mas entrega os vertices sem Z, e e como curva de nivel
+    que ela costuma aparecer: a cota esta nos pontos de controle (grupo 30).
+    Vazio se algo der errado -- as splines saem sem cota, como antes.
+    """
+    cotas = {}
+    codec, _ = detectar_codificacao(caminho_dxf)
+    try:
+        em_spline, handle, zs = False, None, []
+        for codigo, valor in _pares(caminho_dxf, codec):
+            if codigo == 0:
+                if em_spline and handle and zs:
+                    cotas[handle] = zs
+                em_spline, handle, zs = valor == "SPLINE", None, []
+            elif not em_spline:
+                continue
+            elif codigo == 5:
+                handle = valor.strip().upper()
+            elif codigo == 30:           # Z de um ponto de controle
+                try:
+                    zs.append(float(valor))
+                except ValueError:
+                    pass
+    except Exception:
+        return {}
+    return cotas
 
 
 def ordem_de_desenho(caminho_dxf):

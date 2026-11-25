@@ -34,7 +34,7 @@ import os
 import re
 import tempfile
 
-from . import dxf_estilo, textos_cad
+from . import dwg, dxf_estilo, textos_cad
 
 try:
     import ezdxf
@@ -55,6 +55,8 @@ LIMITE_SEGMENTOS = 250000
 
 # o que a copia filtrada leva da secao ENTITIES
 _ENTIDADES = {"HATCH", "MTEXT", "INSERT"}
+# e o que ela leva a mais para a previa: os textos, as cotas (o texto delas) e as imagens
+_DA_PREVIA = {"TEXT", "DIMENSION", "ARC_DIMENSION", "LARGE_RADIAL_DIMENSION", "OLE2FRAME"}
 _UNICODE = re.compile(r"\\U\+([0-9A-Fa-f]{4})")
 
 
@@ -62,8 +64,12 @@ _UNICODE = re.compile(r"\\U\+([0-9A-Fa-f]{4})")
 # Leitura
 # ---------------------------------------------------------------------------
 
-def ler(caminho_dxf, registrar=print):
-    """Devolve {'hachuras': [...], 'mtexts': [...], 'falhas': set()} ou None."""
+def ler(caminho_dxf, registrar=print, para_previa=False):
+    """Devolve {'hachuras': [...], 'mtexts': [...], 'falhas': set(), 'ordem': {...}} ou None.
+
+    `para_previa` le tambem o que so a previa desenha: os textos como o AutoCAD os mostra
+    ('textos', 'textos_visiveis') e as imagens coladas no desenho ('imagens'), ver
+    previa_ezdxf.py; e a ordem de desenho vem mesmo sem hachura nem MTEXT."""
     if not DISPONIVEL:
         registrar("Aviso: texturas de hachura e texto formatado indisponiveis "
                   "(%s); eles saem como antes." % ERRO_IMPORTACAO)
@@ -71,16 +77,29 @@ def ler(caminho_dxf, registrar=print):
     codec, _ = dxf_estilo.detectar_codificacao(caminho_dxf)
     copia = None
     try:
-        copia, tipos = _filtrar(caminho_dxf, codec)
-        if not (tipos & {"HATCH", "MTEXT"}) and not _blocos_tem(copia):
-            return {"hachuras": [], "mtexts": [], "falhas": set()}
+        copia, tipos = _filtrar(caminho_dxf, codec,
+                                _ENTIDADES | _DA_PREVIA if para_previa else _ENTIDADES)
+        if (not para_previa and not (tipos & {"HATCH", "MTEXT"})
+                and not _blocos_tem(copia)):
+            return {"hachuras": [], "mtexts": [], "falhas": set(), "ordem": {}}
         doc = ezdxf.readfile(copia, encoding="utf-8")
         desenho = _extrair(doc)
+        # A ordem em que o AutoCAD desenha (o "trazer para a frente"), da tabela
+        # SORTENTSTABLE, que a copia mantem: {handle: chave}, so do que mudou de lugar --
+        # para as outras, a chave e o proprio handle (ver dxf_estilo.ordem_de_desenho).
+        try:
+            desenho["ordem"] = {h.upper(): int(k, 16)
+                                for h, k in doc.modelspace().get_redraw_order()}
+        except Exception:
+            desenho["ordem"] = {}
         # Hachura em camada desligada ou congelada o AutoCAD nao mostra; o
         # GDAL marca as entidades que ele le, mas as hachuras vem daqui.
         ocultas = {c.dxf.name for c in doc.layers if c.is_off() or c.is_frozen()}
         for h in desenho["hachuras"]:
             h["oculta"] = h["camada"] in ocultas
+        if para_previa:
+            from . import previa_ezdxf
+            desenho.update(previa_ezdxf.ler(doc, _Cores(doc)))
         return desenho
     except Exception as erro:
         registrar("Aviso: nao consegui ler hachuras e textos formatados (%s); "
@@ -104,8 +123,8 @@ def _blocos_tem(copia):
     return "\nHATCH\n" in trecho or "\nMTEXT\n" in trecho
 
 
-def _filtrar(caminho_dxf, codec):
-    """Copia o DXF em UTF-8 levando da secao ENTITIES so o que interessa.
+def _filtrar(caminho_dxf, codec, entidades=_ENTIDADES):
+    """Copia o DXF em UTF-8 levando da secao ENTITIES so as `entidades`.
 
     Os atributos (ATTRIB) e o SEQEND que fecham um INSERT vao junto com ele;
     VERTEX e SEQEND de polilinhas antigas, nao -- a polilinha foi descartada,
@@ -113,6 +132,20 @@ def _filtrar(caminho_dxf, codec):
     """
     descritor, destino = tempfile.mkstemp(suffix=".dxf", prefix="conversor_ez_")
     os.close(descritor)
+    dwg.anotar_temporario(destino)             # se o programa fechar no meio da leitura
+    try:
+        return destino, _copiar_filtrando(caminho_dxf, codec, entidades, destino)
+    except BaseException:
+        # a copia (um pedaco do desenho do cliente) nao pode ficar no TEMP
+        try:
+            os.remove(destino)
+        except OSError:
+            pass
+        raise
+
+
+def _copiar_filtrando(caminho_dxf, codec, entidades, destino):
+    """O trabalho de _filtrar: grava a copia em `destino` e devolve os tipos levados."""
     tipos = set()
     secao = None
     proximo_e_secao = False
@@ -130,7 +163,7 @@ def _filtrar(caminho_dxf, codec):
                         manter = ultimo_principal == "INSERT" and valor != "VERTEX"
                     else:
                         ultimo_principal = valor
-                        manter = valor in _ENTIDADES
+                        manter = valor in entidades
                         if manter:
                             tipos.add(valor)
                 else:
@@ -139,7 +172,7 @@ def _filtrar(caminho_dxf, codec):
                 secao, proximo_e_secao = valor, False
             if manter:
                 saida.write("%3d\n%s\n" % (codigo, valor))
-    return destino, tipos
+    return tipos
 
 
 # ---------------------------------------------------------------------------
@@ -205,9 +238,12 @@ def _blocos_uteis(doc):
 
 
 def _percorrer(entidades, cores, uteis, camada_do_bloco=None, cor_do_bloco=None,
-               profundidade=0):
+               profundidade=0, topo=None):
+    """(tipo, entidade, camada, cor, dentro de bloco, topo) das hachuras e MTEXT. `topo` e o
+    handle da entidade solta no desenho de onde ela veio (o INSERT, se veio de um bloco)."""
     for entidade in entidades:
         tipo = entidade.dxftype()
+        dono = topo or (entidade.dxf.get("handle") or "").upper()
         if tipo == "INSERT":
             if profundidade >= 16 or entidade.dxf.get("name") not in uteis:
                 continue
@@ -218,25 +254,27 @@ def _percorrer(entidades, cores, uteis, camada_do_bloco=None, cor_do_bloco=None,
                           else [entidade])
                 for copia in copias:
                     yield from _percorrer(copia.virtual_entities(), cores, uteis,
-                                          camada, cor, profundidade + 1)
+                                          camada, cor, profundidade + 1, dono)
             except Exception:
                 continue
         elif tipo in ("HATCH", "MTEXT"):
             camada = _camada_efetiva(entidade, camada_do_bloco)
             dentro_de_bloco = camada_do_bloco is not None
             yield (tipo, entidade, camada, cores.da_entidade(entidade, camada, cor_do_bloco),
-                   dentro_de_bloco)
+                   dentro_de_bloco, dono)
 
 
 def _extrair(doc):
     cores = _Cores(doc)
     uteis = _blocos_uteis(doc)
     hachuras, mtexts, falhas = [], [], set()
-    for tipo, entidade, camada, cor, em_bloco in _percorrer(doc.modelspace(), cores, uteis):
+    for tipo, entidade, camada, cor, em_bloco, topo in _percorrer(doc.modelspace(), cores,
+                                                                   uteis):
         try:
             if tipo == "HATCH":
                 item = _hachura(entidade, camada, cor)
                 if item:
+                    item["topo"] = topo
                     hachuras.append(item)
             else:
                 mtexts.append(_mtext(entidade, camada, cor))
@@ -256,13 +294,18 @@ def _hachura(h, camada, cor):
     base = {"camada": camada, "cor": cor, "padrao": padrao or "SOLID",
             "handle": (h.dxf.get("handle") or "").upper()}
     gradiente = getattr(h, "gradient", None)
+    # O AutoCAD grava dados de degrade (codigo 450) ate em hachura solida comum: tipo 0 e
+    # "nao e degrade", com um azul padrao como primeira cor. So o tipo 1 e degrade de verdade.
+    if gradiente is not None and getattr(gradiente, "kind", 1) == 0:
+        gradiente = None
     if h.dxf.get("solid_fill", 0) or gradiente is not None:
         if gradiente is not None and getattr(gradiente, "color1", None):
             base["cor"] = tuple(gradiente.color1)
         base.update(tipo="solida", padrao="SOLID", poligonos=_poligonos(h))
         return base if base["poligonos"] else None
+    familias = []
     try:
-        linhas = _linhas_do_padrao(h)
+        linhas = _linhas_do_padrao(h, familias)
     except (_Densa, hatching.HatchingError):
         linhas = None       # fino demais para desenhar linha a linha
     if not linhas:
@@ -271,7 +314,7 @@ def _hachura(h, camada, cor):
         # a tinta translucida de antes.
         base.update(tipo="translucida", poligonos=_poligonos(h))
         return base if base["poligonos"] else None
-    base.update(tipo="padrao", linhas=linhas)
+    base.update(tipo="padrao", linhas=linhas, familias=familias)
     return base
 
 
@@ -279,8 +322,13 @@ class _Densa(Exception):
     pass
 
 
-def _linhas_do_padrao(h):
+def _linhas_do_padrao(h, familias=None):
     """As linhas do padrao, recortadas pela borda, em coordenadas do desenho.
+
+    Com a lista `familias`, junta nela, para cada linha do padrao (a 0 graus, a 90...), um
+    {'de', 'ate': os tracos dela em `linhas`; 'cheias': as mesmas linhas inteiras, sem os
+    vaos; 'periodo': traco + vao; 'menor_vao'}. De longe, quando o padrao fica menor que
+    uns poucos pixels, o AutoCAD desenha as linhas inteiras (ver previa_raster).
 
     Faz o que hatching.hatch_entity do ezdxf faz, com tres erros corrigidos:
 
@@ -301,19 +349,28 @@ def _linhas_do_padrao(h):
     ocs = h.ocs()
     elevacao = h.dxf.elevation.z
     aneis = _bordas(h)
+    def no_desenho(ponto):
+        if ocs.transform:
+            ponto = ocs.to_wcs((ponto.x, ponto.y, elevacao))
+        return (ponto.x, ponto.y)
+
     saida = []
     for base in hatching.pattern_baselines(h):
+        de, cheias = len(saida), []
         for distancia, comeco, termino in _dentro(base, aneis):
+            cheias.append([no_desenho(comeco), no_desenho(termino)])
             for inicio, fim in base.pattern_renderer(distancia).render(comeco, termino):
-                if ocs.transform:
-                    inicio = ocs.to_wcs((inicio.x, inicio.y, elevacao))
-                    fim = ocs.to_wcs((fim.x, fim.y, elevacao))
-                a, b = (inicio.x, inicio.y), (fim.x, fim.y)
+                a, b = no_desenho(inicio), no_desenho(fim)
                 if abs(a[0] - b[0]) < 1e-9 and abs(a[1] - b[1]) < 1e-9:
                     b = (a[0] + 1e-3, a[1])
                 saida.append([a, b])
                 if len(saida) > LIMITE_SEGMENTOS:
                     raise _Densa()
+        if familias is not None:
+            medidas = [abs(float(v)) for v in base.line_pattern]
+            vaos = [abs(float(v)) for v in base.line_pattern if v < 0]
+            familias.append({"de": de, "ate": len(saida), "cheias": cheias,
+                             "periodo": sum(medidas), "menor_vao": min(vaos) if vaos else 0.0})
     return saida
 
 
@@ -773,12 +830,20 @@ def medir(texto, altura, estilo, esticamento=100):
     return largura + texto.count(" ") * fonte.space_width() * altura * fator
 
 
-def _carregar_fonte(familia, negrito, italico):
-    faces = _indice_fontes()[0].get(familia.lower())
+def escolher_face(familia, negrito, italico):
+    """A face instalada da `familia` mais perto do pedido, ou None. O negrito do AutoCAD
+    e o peso 700 (Arial Bold), nao o mais pesado da familia (Arial Black, 900)."""
+    faces = _indice_fontes()[0].get((familia or "").lower())
     if not faces:
         return None
-    face = min(faces, key=lambda f: ((f.weight >= 600) != negrito, f.is_italic != italico,
+    return min(faces, key=lambda f: ((f.weight >= 600) != negrito, f.is_italic != italico,
                                      abs(f.weight - (700 if negrito else 400))))
+
+
+def _carregar_fonte(familia, negrito, italico):
+    face = escolher_face(familia, negrito, italico)
+    if face is None:
+        return None
     try:
         from ezdxf.fonts import fonts
         fonte = fonts.make_font(face.filename, cap_height=1.0)
