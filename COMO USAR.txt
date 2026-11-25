@@ -153,6 +153,146 @@ DESMARCADA por padrao.
 
 
 -----------------------------------------------------------
+  ESCOLHER AS CAMADAS (COM O DESENHO AO LADO)
+-----------------------------------------------------------
+
+Na aba "AutoCAD -> QGIS", marque "Escolher as camadas que vao
+para a conversao". A janela se alarga e, ao lado, aparecem a
+lista de camadas e o desenho.
+
+  - O DESENHO aparece com fundo branco, como no AutoCAD, so com
+    o que o AutoCAD mostra: as camadas DESLIGADAS nao aparecem,
+    nem no desenho nem na lista. Se precisar delas (muita gente
+    deixa as curvas de nivel desligadas), marque a caixinha
+    "Mostrar camadas desligadas no AutoCAD".
+    As cores sao as do desenho, linha por linha, sem alterar:
+    uma linha azul continua azul. O branco do AutoCAD aparece
+    preto, como no AutoCAD de fundo branco. As hachuras vem
+    pintadas (um lago e azul por dentro) ou com o padrao delas,
+    e as linhas tracejadas vem tracejadas; de longe, quando o
+    tracejado ou o padrao da hachura fica miudo demais, a linha
+    aparece cheia e a hachura pintada, como no AutoCAD.
+    Os TEXTOS aparecem com a letra, a cor e o tamanho do AutoCAD
+    (o carimbo, o logo, os rotulos, as coordenadas). Fontes que
+    so o AutoCAD tem saem na mais parecida do Windows: a swissc
+    (estreita) em Arial Narrow; as .shx, como a romans, em Arial.
+    De longe, quando o texto fica miudo demais para ler, ele vira
+    uma barra cheia do tamanho dele, como o AutoCAD 2007 faz (o
+    carimbo na vista inteira, por exemplo); chegando perto, as
+    letras voltam. A TABELA colada no desenho (a das areas) aparece
+    no lugar dela, por cima de tudo, como no AutoCAD 2007.
+    O que fica por cima de que e igual ao AutoCAD: o que ele
+    desenha depois cobre o que veio antes (inclusive o "trazer
+    para a frente"). Rotulos de blocos que o AutoCAD esconde (os
+    milhares de numeros dos pontos do levantamento, em camadas
+    congeladas) tambem ficam escondidos aqui.
+    A roda do mouse da zoom, arrastar move, e "Ver tudo" volta a
+    vista inteira.
+    Com o desenho aberto, o quadro "O que aconteceu" fica a
+    esquerda, embaixo do botao CONVERTER (e nao mais embaixo de
+    tudo): assim o desenho tem a altura toda da janela. Na outra
+    aba, ou desmarcando "Escolher as camadas", ele volta para baixo.
+    Para ver o desenho GRANDE, clique em "Ampliar desenho": a
+    janela maximiza e o desenho ocupa tudo (os passos, a lista
+    e o quadro "O que aconteceu" saem da frente). Da para dar
+    zoom e clicar nas linhas do mesmo jeito. "Voltar ao normal"
+    ou a tecla Esc traz tudo de volta.
+
+  - A LISTA mostra cada camada com a cor que ela tem e o que tem
+    dentro (pontos, linhas, areas, textos). O campo "Buscar"
+    filtra pelo nome. A janela abre SEM NENHUMA camada marcada.
+
+  - ESCOLHER O QUE VAI PARA A CONVERSAO tem dois jeitos, que se
+    somam:
+      * A CAMADA INTEIRA: marque a caixinha dela na lista. A camada
+        marcada fica em NEGRITO, na mesma cor, na lista e no
+        desenho.
+      * UMA LINHA SO: clique nela no desenho. Ela fica em negrito,
+        na cor de sempre, e o resto da camada continua fino.
+      * UM TEXTO SO: clique em cima dele no desenho. As letras ficam
+        em negrito (de longe, a barra dele fica mais grossa). Um
+        texto de varias linhas (MTEXT) vem inteiro.
+    Um clique comum escolhe so aquela linha ou texto (e desmarca o
+    que estava marcado); segurando CTRL, o clique soma as ja
+    escolhidas (e, se ja estava escolhido, tira). Clicar num
+    lugar vazio nao mexe em nada. Clicando em cima de um texto, vale
+    o texto; para escolher uma linha que passa por ele, clique na
+    linha fora do texto. Na lista, a camada escolhida fica em
+    negrito e diz "(1 linha escolhida)" ou "(1 texto escolhido)"; o botao
+    "Desmarcar todas" tira tudo. Clicar no nome de uma camada na
+    lista so a destaca no desenho, com um contorno branco, sem
+    marcar nem trocar a cor.
+
+    O QUE E "UMA LINHA": no AutoCAD cada trecho reto e uma peca
+    (um quadrado feito com quatro tracinhos tem quatro pecas), mas
+    para quem olha e uma linha so. O programa junta as pecas que se
+    encostam PELAS PONTAS, na mesma camada e na mesma cor. Uma linha
+    fechada (um lote, um circulo) ja e uma linha so e nao se junta a
+    nenhuma outra. Pecas que so se tocam no meio de outra (um "T")
+    NAO se juntam: use CTRL + clique para somar cada uma. Pontos e
+    areas contam um por um. A lista diz "N linhas" porque conta as
+    pecas do AutoCAD, entao pode ser bem mais do que o numero de
+    linhas que se enxerga no desenho. Ao clicar, o texto abaixo da
+    lista diz a camada, a cor e de quantas pecas e a linha.
+
+SEPARAR CADA CAMADA POR COR: muitos desenhos jogam quase tudo
+numa camada so (a camada "0") e diferenciam as coisas pela cor.
+Marcando "Separar cada camada por cor", a lista passa a ter uma
+linha para cada cor de cada camada ("0 . ciano", "0 . verde"...),
+cada uma com a sua caixinha. Clicar numa linha do desenho escolhe
+so aquela linha, tambem aqui. Na conversao, cada cor marcada (ou com
+linhas escolhidas) vira uma camada de saida propria, de nome
+"<camada>_<cor>" (por exemplo 0_ciano); o campo "Layer" da tabela
+continua dizendo a camada original. Camadas que tem uma cor so mantem o nome de sempre. Ao
+ligar ou desligar a opcao, as marcas vao junto; uma camada so conta
+como marcada, no modo sem cores, se TODAS as cores dela estavam.
+O programa nao sabe o que cada cor significa (se o azul e rio, por
+exemplo): isso quem desenhou ou usa o desenho e que sabe.
+
+Marque so as camadas que quer e clique em CONVERTER: o resultado
+leva apenas elas. O clique no desenho escolhe pontos, linhas,
+areas e textos; as hachuras e a tabela aparecem, mas nao sao
+escolhidas pelo clique (as hachuras vao na conversao se a camada
+estiver marcada). Se "Nao levar textos nem hachuras" estiver
+marcada, o texto escolhido fica de fora, e o quadro "O que
+aconteceu" avisa. Com muitas linhas juntas,
+como curvas de nivel, o negrito de longe vira uma mancha: aproxime
+com a roda do mouse para ver as linhas separadas.
+
+FEICOES LONGE DO DESENHO: se o programa achar feicoes a centenas
+de quilometros do resto (como linhas perdidas na coordenada 0,0,
+que cairiam no meio do oceano), ele avisa embaixo da previa e,
+por padrao, deixa elas de fora. Desmarque "Deixar de fora essas
+feicoes" para levar tudo.
+
+
+-----------------------------------------------------------
+  ENTREGAR EM POUCOS ARQUIVOS (UM POR TIPO)
+-----------------------------------------------------------
+
+Quando precisam de um arquivo so de pontos, um so de linhas e um
+so de areas (em vez de um por camada do AutoCAD):
+
+  1. Formato de saida: Shapefile.
+  2. DESMARQUE "Criar uma camada do QGIS para cada camada do
+     AutoCAD". Todas as camadas escolhidas se juntam, por tipo.
+  3. Marque "Nao levar textos nem hachuras". Sem isso, eles vem
+     como arquivos a mais (Texto, Hachura).
+  4. Se quiser, escolha as camadas que entram (veja acima).
+
+Saem LineString.shp (as linhas), Point.shp (os pontos) e
+Polygon.shp (as areas), cada um com os arquivos .shx, .dbf, .prj
+e .cpg. O campo "Layer" da tabela diz de que camada do AutoCAD
+veio cada linha, ponto ou area (e "cor_cad" diz a cor).
+
+As camadas que estavam desligadas no AutoCAD, se voce as
+escolheu, entram nos mesmos arquivos. O programa NAO muda o
+sistema de coordenadas nem transforma polilinhas fechadas em
+areas por conta propria: se precisar, use "Reprojetar para outro
+sistema" e "Transformar polilinhas fechadas em areas".
+
+
+-----------------------------------------------------------
   DO QGIS PARA O AUTOCAD
 -----------------------------------------------------------
 
@@ -252,7 +392,9 @@ Arquivo > Salvar Como e escolha
   preservados nos dois sentidos.
 
 - As cotas (valores de altura) das curvas de nivel sao
-  preservadas nos dois sentidos.
+  preservadas nos dois sentidos, em qualquer formato de saida
+  (GeoPackage, Shapefile ou GeoJSON) e tambem nas curvas
+  desenhadas como spline.
 
 - O desenho e gravado no formato AutoCAD 2004, que o
   AutoCAD 2007 abre normalmente.
