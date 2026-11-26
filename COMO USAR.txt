@@ -27,6 +27,11 @@ atalho.
    Se o desenho foi feito por este mesmo programa, ele
    descobre sozinho e avisa na tela.
 
+   Escolher aqui NAO converte o desenho para outro sistema:
+   so diz ao QGIS em que sistema ele ja esta. O arquivo sai
+   com as mesmas coordenadas. Se o sistema estiver errado, o
+   desenho aparece no lugar errado do mapa.
+
 4. Escolha o formato de saida (GeoPackage e o mais pratico).
 
    Em "Onde salvar", o programa ja sugere a pasta do proprio
@@ -346,10 +351,9 @@ e .cpg. O campo "Layer" da tabela diz de que camada do AutoCAD
 veio cada linha, ponto ou area (e "cor_cad" diz a cor).
 
 As camadas que estavam desligadas no AutoCAD, se voce as
-escolheu, entram nos mesmos arquivos. O programa NAO muda o
-sistema de coordenadas nem transforma polilinhas fechadas em
-areas por conta propria: se precisar, use "Reprojetar para outro
-sistema" e "Transformar polilinhas fechadas em areas".
+escolheu, entram nos mesmos arquivos. O programa NAO transforma
+polilinhas fechadas em areas por conta propria: se precisar,
+use "Transformar polilinhas fechadas em areas".
 
 
 -----------------------------------------------------------
