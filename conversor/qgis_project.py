@@ -268,12 +268,12 @@ def _renderizador(camada):
         # a categoria combina cor e tipo: a mesma cor pode vir solida numa
         # hachura e com padrao em outra
         campo_hach = camada.get("campo_hachura") or "hachura"
-        expressao = ('"%s" || CASE WHEN "%s" = \'SOLID\' THEN \'\' ELSE \' padrao\' END'
+        expressao = ('"%s" || CASE WHEN "%s" = \'SOLID\' THEN \'\' ELSE \' padrão\' END'
                      % (campo_cor, campo_hach))
         pares = camada["hachura"] or [(c, True) for c in cores]
         categorias = []
         for i, (valor, solida) in enumerate(pares):
-            chave = valor if solida else valor + " padrao"
+            chave = valor if solida else valor + " padrão"
             categorias.append((chave, chave,
                                _simbolo_hachura(hex_para_rgb(valor), solida, str(i))))
         return _renderizador_categorizado(expressao, categorias)

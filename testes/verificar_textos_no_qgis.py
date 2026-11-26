@@ -90,7 +90,7 @@ def main():
             solido = Qt.SolidPattern                 # Qt5 (QGIS 3)
         for cat in cats:
             sl = cat.symbol().symbolLayer(0)
-            padrao = str(cat.value()).endswith("padrao")
+            padrao = str(cat.value()).endswith("padrão")
             alfa = sl.fillColor().alpha()
             checar("%s %s preenchida%s" % (c.name(), cat.value(),
                                           " (translucida)" if padrao else ""),

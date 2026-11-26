@@ -17,14 +17,14 @@ PADRAO = 31982
 
 # (epsg, rotulo exibido). A ordem e a ordem do menu suspenso.
 PRESETS = [
-    (31982, "SIRGAS 2000 / UTM 22S  -  RS, SC, PR, MS (padrao)"),
+    (31982, "SIRGAS 2000 / UTM 22S  -  RS, SC, PR, MS (padrão)"),
     (31981, "SIRGAS 2000 / UTM 21S  -  MS oeste, MT, RO"),
     (31983, "SIRGAS 2000 / UTM 23S  -  SP, RJ, MG, GO"),
     (31984, "SIRGAS 2000 / UTM 24S  -  BA, ES, sul da BA"),
     (31985, "SIRGAS 2000 / UTM 25S  -  PE, PB, RN, AL, SE"),
     (31979, "SIRGAS 2000 / UTM 19S  -  AC, AM oeste"),
     (31980, "SIRGAS 2000 / UTM 20S  -  AM, RO oeste"),
-    (None, "---- Geograficas (graus) - evite no AutoCAD ----"),
+    (None, "---- Geográficas (graus) - evite no AutoCAD ----"),
     (4674, "SIRGAS 2000 (graus, lat/lon)"),
     (4326, "WGS 84 (graus, lat/lon - GPS, Google Earth)"),
     (None, "---- WGS 84 / UTM ----"),
@@ -32,11 +32,11 @@ PRESETS = [
     (32722, "WGS 84 / UTM 22S"),
     (32723, "WGS 84 / UTM 23S"),
     (32724, "WGS 84 / UTM 24S"),
-    (None, "---- Datums antigos (levantamentos pre-2005) ----"),
+    (None, "---- Datums antigos (levantamentos pré-2005) ----"),
     (29192, "SAD69 / UTM 22S"),
     (29193, "SAD69 / UTM 23S"),
-    (22522, "Corrego Alegre / UTM 22S"),
-    (22523, "Corrego Alegre / UTM 23S"),
+    (22522, "Córrego Alegre / UTM 22S"),
+    (22523, "Córrego Alegre / UTM 23S"),
 ]
 
 

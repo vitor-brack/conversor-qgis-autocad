@@ -21,7 +21,7 @@ def main():
     p1.add_argument("entrada")
     p1.add_argument("saida")
     p1.add_argument("--camada", action="append", default=None,
-                    help="camada a converter (repita para varias)")
+                    help="camada a converter (repita para várias)")
     p1.add_argument("--epsg", type=int, default=crs_presets.PADRAO)
     p1.add_argument("--epsg-origem", type=int, default=None)
     p1.add_argument("--campo-camada", default=None)
@@ -33,20 +33,20 @@ def main():
     p2.add_argument("entrada")
     p2.add_argument("saida")
     p2.add_argument("--epsg", type=int, default=crs_presets.PADRAO,
-                    help="sistema em que o desenho esta")
+                    help="sistema em que o desenho está")
     p2.add_argument("--epsg-destino", type=int, default=None)
     p2.add_argument("--formato", default="GPKG",
                     choices=["GPKG", "ESRI Shapefile", "GeoJSON"])
     p2.add_argument("--juntar-camadas", action="store_true",
-                    help="nao separar uma camada do QGIS por camada do AutoCAD")
+                    help="não separar uma camada do QGIS por camada do AutoCAD")
     p2.add_argument("--sem-projeto", action="store_true",
-                    help="nao gerar o arquivo de projeto .qgs")
+                    help="não gerar o arquivo de projeto .qgs")
     p2.add_argument("--sem-imagens", action="store_true",
-                    help="nao trazer as imagens raster do desenho")
+                    help="não trazer as imagens raster do desenho")
     p2.add_argument("--sem-textos-e-hachuras", action="store_true",
-                    help="nao levar textos nem hachuras (so pontos, linhas e areas)")
+                    help="não levar textos nem hachuras (só pontos, linhas e áreas)")
     p2.add_argument("--areas", action="store_true",
-                    help="transformar polilinhas fechadas em poligonos")
+                    help="transformar polilinhas fechadas em polígonos")
 
     args = ap.parse_args()
     try:
@@ -71,7 +71,7 @@ def main():
         print("ERRO:", erro, file=sys.stderr)
         return 1
 
-    print("Concluido: %d feicoes" % resultado["feicoes"])
+    print("Concluído: %d feições" % resultado["feicoes"])
     for caminho in resultado["arquivos"]:
         print("  ->", caminho)
     return 0

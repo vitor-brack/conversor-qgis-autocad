@@ -74,7 +74,7 @@ def ler(caminho_dxf, registrar=print, para_previa=False):
     ('textos', 'textos_visiveis') e as imagens coladas no desenho ('imagens'), ver
     previa_ezdxf.py; e a ordem de desenho vem mesmo sem hachura nem MTEXT."""
     if not DISPONIVEL:
-        registrar("Aviso: texturas de hachura e texto formatado indisponiveis "
+        registrar("Aviso: texturas de hachura e texto formatado indisponíveis "
                   "(%s); eles saem como antes." % ERRO_IMPORTACAO)
         return None
     codec, _ = dxf_estilo.detectar_codificacao(caminho_dxf)
@@ -108,7 +108,7 @@ def ler(caminho_dxf, registrar=print, para_previa=False):
             desenho["figuras"] = previa_ezdxf.figuras_coladas(doc)
         return desenho
     except Exception as erro:
-        registrar("Aviso: nao consegui ler hachuras e textos formatados (%s); "
+        registrar("Aviso: não consegui ler hachuras e textos formatados (%s); "
                   "eles saem como antes." % erro)
         return None
     finally:

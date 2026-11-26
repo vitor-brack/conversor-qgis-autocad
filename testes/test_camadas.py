@@ -84,7 +84,7 @@ def test_carimbo_da_folha_nao_entra_no_desenho(conv):
               for f in feicoes(conv, c)]
     assert not [t for t in textos if t in conv.esperado["papel"]], \
         "o carimbo da folha nao entra no desenho -> %s" % textos
-    assert any("folha de impressao" in linha for linha in conv.log), "o log explica"
+    assert any("folha de impressão" in linha for linha in conv.log), "o log explica"
 
 
 def test_desenho_feito_so_no_espaco_de_papel(conv):

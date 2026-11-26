@@ -54,7 +54,7 @@ def listar_camadas(caminho):
         return [nome for nome in fiona.listlayers(caminho)
                 if nome != qgis_project.TABELA_ESTILOS]
     except Exception as erro:
-        raise ErroConversao("Nao foi possivel abrir '%s':\n%s"
+        raise ErroConversao("Não foi possível abrir '%s':\n%s"
                             % (os.path.basename(caminho), erro))
 
 
@@ -228,8 +228,8 @@ def qgis_para_cad(entradas, saida, epsg_destino, campo_camada=None,
     destino_dxf = os.path.splitext(saida)[0] + ".dxf" if quer_dwg else saida
 
     if not crs_presets.eh_projetado(epsg_destino):
-        registrar("AVISO: EPSG:%s usa graus, nao metros. O desenho vai sair "
-                  "com fracoes de unidade de tamanho e nao serve para medir. "
+        registrar("AVISO: EPSG:%s usa graus, não metros. O desenho vai sair "
+                  "com frações de unidade de tamanho e não serve para medir. "
                   "Prefira um UTM." % epsg_destino)
 
     feicoes = []
@@ -252,7 +252,7 @@ def qgis_para_cad(entradas, saida, epsg_destino, campo_camada=None,
                     pass
             if not epsg_origem:
                 raise ErroConversao(
-                    "A camada '%s' nao diz em que sistema de coordenadas esta "
+                    "A camada '%s' não diz em que sistema de coordenadas está "
                     "(falta o arquivo .prj).\nEscolha o sistema de origem na "
                     "tela antes de converter." % nome_exibicao)
 
@@ -261,7 +261,7 @@ def qgis_para_cad(entradas, saida, epsg_destino, campo_camada=None,
                 registrar("  %s: reprojetando de EPSG:%s para EPSG:%s"
                           % (nome_exibicao, epsg_origem, epsg_destino))
             else:
-                registrar("  %s: ja esta em EPSG:%s" % (nome_exibicao, epsg_destino))
+                registrar("  %s: já está em EPSG:%s" % (nome_exibicao, epsg_destino))
 
             for feicao in origem:
                 geom = feicao.get("geometry")
@@ -298,10 +298,10 @@ def qgis_para_cad(entradas, saida, epsg_destino, campo_camada=None,
                     linhas_csv.append(linha)
 
     if not feicoes:
-        raise ErroConversao("Nenhuma feicao com geometria foi encontrada nos "
+        raise ErroConversao("Nenhuma feição com geometria foi encontrada nos "
                             "arquivos selecionados.")
 
-    registrar("Gravando %d feicoes em %d camadas..." % (len(feicoes), len(camadas_criadas)))
+    registrar("Gravando %d feições em %d camadas..." % (len(feicoes), len(camadas_criadas)))
 
     esquema = {"geometry": "Unknown", "properties": {"Layer": "str"}}
     # Por padrao o GDAL grava poligono como HATCH solida: no AutoCAD cada
@@ -315,7 +315,7 @@ def qgis_para_cad(entradas, saida, epsg_destino, campo_camada=None,
     if rotulos:
         escritos = dxfio.injetar_textos(destino_dxf, rotulos, altura=altura_texto,
                                         somente_ascii=somente_ascii)
-        registrar("%d rotulos de texto inseridos (campo '%s')." % (escritos, campo_rotulo))
+        registrar("%d rótulos de texto inseridos (campo '%s')." % (escritos, campo_rotulo))
 
     dxfio.finalizar_codificacao(destino_dxf, somente_ascii)
     dxfio.gravar_crs_acompanhante(destino_dxf, epsg_destino,
@@ -336,7 +336,7 @@ def qgis_para_cad(entradas, saida, epsg_destino, campo_camada=None,
             escritor.writeheader()
             escritor.writerows(linhas_csv)
         gerados.append(caminho_csv)
-        registrar("Atributos salvos em %s (o DXF nao guarda tabela de atributos)."
+        registrar("Atributos salvos em %s (o DXF não guarda tabela de atributos)."
                   % os.path.basename(caminho_csv))
 
     if quer_dwg:
@@ -347,7 +347,7 @@ def qgis_para_cad(entradas, saida, epsg_destino, campo_camada=None,
                   % dwg.VERSAO_SAIDA_DWG)
 
     if ignoradas:
-        registrar("%d feicoes sem geometria foram ignoradas." % ignoradas)
+        registrar("%d feições sem geometria foram ignoradas." % ignoradas)
 
     return {"arquivos": gerados, "feicoes": len(feicoes),
             "camadas": sorted(camadas_criadas), "rotulos": len(rotulos)}
@@ -909,7 +909,7 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
             # Reserva: sem a style string do OGR so da para saber a cor da
             # camada, entao entidades pintadas a mao saem com a cor errada.
             cores_camada = cores_tabela
-            registrar("Aviso: nao consegui ler a cor entidade a entidade; "
+            registrar("Aviso: não consegui ler a cor entidade a entidade; "
                       "usando a cor de cada camada.")
 
         for n_feicao, feicao in enumerate(origem):
@@ -1032,7 +1032,7 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
     try:
         _ajustar_textos(ajustes, transformador)
     except Exception as erro:          # os textos ficam como ja estavam
-        registrar("Aviso: nao consegui acertar o tamanho de alguns textos (%s)." % erro)
+        registrar("Aviso: não consegui acertar o tamanho de alguns textos (%s)." % erro)
 
     if desenho is not None:
         hachuras = desenho["hachuras"]
@@ -1053,7 +1053,7 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
                                          separar_por_camada, ocultas,
                                          saida_de=saida_de)
         if texturas:
-            registrar("%d hachuras com padrao desenhadas linha a linha." % texturas)
+            registrar("%d hachuras com padrão desenhadas linha a linha." % texturas)
 
     # O espaco de papel e a folha de impressao (a aba Layout): moldura,
     # carimbo, logotipo, com coordenadas de papel que nada tem a ver com as do
@@ -1063,9 +1063,9 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
     # fora -- a nao ser que o desenho so tenha espaco de papel.
     if grupos_papel:
         if grupos:
-            registrar("%d entidades da folha de impressao (espaco de papel, a aba Layout "
-                      "do AutoCAD) ficaram de fora: na aba Model, que e o desenho, elas "
-                      "nao aparecem." % sum(len(v) for v in grupos_papel.values()))
+            registrar("%d entidades da folha de impressão (espaço de papel, a aba Layout "
+                      "do AutoCAD) ficaram de fora: na aba Model, que é o desenho, elas "
+                      "não aparecem." % sum(len(v) for v in grupos_papel.values()))
         else:
             for chave, feicoes in grupos_papel.items():
                 grupos.setdefault(chave, []).extend(feicoes)
@@ -1073,8 +1073,8 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
     if not grupos and not extras["imagens"]:
         raise ErroConversao(
             "Nenhuma geometria foi encontrada em '%s'.\n\n"
-            "Causas comuns: o desenho esta vazio, so tem objetos que o "
-            "programa nao le, ou o DXF foi salvo em um formato muito antigo."
+            "Causas comuns: o desenho está vazio, só tem objetos que o "
+            "programa não lê, ou o DXF foi salvo em um formato muito antigo."
             % os.path.basename(entrada))
 
     # Camada desligada ou congelada no AutoCAD vem para o QGIS desmarcada: os
@@ -1097,10 +1097,10 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
 
     total = sum(len(v) for v in grupos.values())
     distintas = {f["properties"][CAMPO_COR] for g in grupos.values() for f in g}
-    registrar("%d feicoes em %d camadas, %d cores distintas."
+    registrar("%d feições em %d camadas, %d cores distintas."
               % (total, len(grupos), len(distintas)))
     if grupos_ocultos:
-        registrar("%d camadas estavam desligadas ou congeladas no AutoCAD: no QGIS vem "
+        registrar("%d camadas estavam desligadas ou congeladas no AutoCAD: no QGIS vêm "
                   "desmarcadas (marque a caixinha para ver)." % len(grupos_ocultos))
 
     # O enquadramento inicial so conta o que aparece (se tudo estiver
@@ -1193,7 +1193,7 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
                 camada["hachura"] = list(solidas)
                 camada["campo_hachura"] = CAMPO_HACHURA
         if com_texto:
-            registrar("Textos em %d camadas, na posicao, tamanho e rotacao do desenho."
+            registrar("Textos em %d camadas, na posição, tamanho e rotação do desenho."
                       % com_texto)
 
     if escreve_qml:
@@ -1203,7 +1203,7 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
                 qgis_project.gerar_qml(os.path.join(pasta_dados, camada["nome"] + ".qml"), camada)
         except Exception as erro:
             # Como o projeto, o estilo e uma conveniencia: os dados ja estao salvos.
-            registrar("Aviso: nao consegui gravar o estilo (.qml) ao lado dos dados (%s). "
+            registrar("Aviso: não consegui gravar o estilo (.qml) ao lado dos dados (%s). "
                       "Os dados foram convertidos normalmente, mas o QGIS vai sortear as cores."
                       % erro)
     elif camadas_projeto:
@@ -1211,7 +1211,7 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
             qgis_project.gravar_estilos_no_gpkg(saida, camadas_projeto)
             registrar("Cores do AutoCAD gravadas dentro do .gpkg: o QGIS as aplica ao abrir.")
         except Exception as erro:
-            registrar("Aviso: nao consegui gravar as cores dentro do .gpkg (%s). "
+            registrar("Aviso: não consegui gravar as cores dentro do .gpkg (%s). "
                       "Os dados foram convertidos normalmente, mas o QGIS vai sortear as cores."
                       % erro)
 
@@ -1222,7 +1222,7 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
         except Exception as erro:
             # O projeto e uma conveniencia. Se falhar, os dados ja estao salvos
             # e o usuario ainda pode abri-los por Camada > Adicionar Camada.
-            registrar("Aviso: nao consegui gerar o projeto .qgs (%s). "
+            registrar("Aviso: não consegui gerar o projeto .qgs (%s). "
                       "Os dados foram convertidos normalmente." % erro)
         if projeto:
             gerados.append(projeto)
@@ -1230,13 +1230,13 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
             registrar("  -> de dois cliques nesse arquivo para abrir tudo pronto.")
 
     if ignoradas:
-        registrar("%d entidades sem geometria aproveitavel foram ignoradas."
+        registrar("%d entidades sem geometria aproveitável foram ignoradas."
                   % ignoradas)
     if defpoints:
-        registrar("%d pontos de definicao de cota (camada Defpoints) ficaram de fora: "
-                  "o AutoCAD tambem nao os imprime." % defpoints)
+        registrar("%d pontos de definição de cota (camada Defpoints) ficaram de fora: "
+                  "o AutoCAD também não os imprime." % defpoints)
     if fora_da_caixa:
-        registrar("%d feicoes longe do desenho (fora da area principal) ficaram de fora."
+        registrar("%d feições longe do desenho (fora da área principal) ficaram de fora."
                   % fora_da_caixa)
     if sem_texto_hachura:
         registrar("%d textos e hachuras ficaram de fora, como pedido." % sem_texto_hachura)
@@ -1266,7 +1266,7 @@ def _exportar_imagens(extras, entrada, caminho_dxf, caminho_qgs, epsg_origem,
         gravado = extras["arquivos"].get(imagem["definicao"])
         arquivo = imagens_cad.localizar(gravado, pastas)
         if not arquivo:
-            faltando.append(gravado or "(o desenho nao informa o arquivo)")
+            faltando.append(gravado or "(o desenho não informa o arquivo)")
             continue
         nome = _nome_seguro(os.path.splitext(os.path.basename(arquivo))[0])
         if nome in usados:
@@ -1276,7 +1276,7 @@ def _exportar_imagens(extras, entrada, caminho_dxf, caminho_qgs, epsg_origem,
             copia, ext_img = imagens_cad.exportar(imagem, arquivo, pasta_img,
                                                   epsg_origem, nome)
         except (OSError, ValueError) as erro:
-            registrar("Aviso: nao consegui copiar a imagem %s (%s)."
+            registrar("Aviso: não consegui copiar a imagem %s (%s)."
                       % (os.path.basename(arquivo), erro))
             continue
         cantos = [(ext_img[0], ext_img[1]), (ext_img[2], ext_img[3])]
@@ -1292,7 +1292,7 @@ def _exportar_imagens(extras, entrada, caminho_dxf, caminho_qgs, epsg_origem,
         registrar("Imagem incluida: %s" % os.path.basename(arquivo))
 
     for gravado in faltando:
-        registrar("Imagem NAO encontrada: %s\n"
+        registrar("Imagem NÃO encontrada: %s\n"
                   "  -> ela ficou de fora. Coloque o arquivo na mesma pasta do "
                   "desenho e converta de novo." % gravado)
     return camadas
@@ -1328,7 +1328,7 @@ def _exportar_figuras(figuras, saida, formato, caminho_qgs, epsg_origem, transfo
                 fonte = "./" + os.path.relpath(arquivo, pasta_qgs).replace("\\", "/")
         except Exception as erro:
             # como o estilo e o projeto: os dados ja estao salvos
-            registrar("Aviso: nao consegui gravar a figura colada da camada %s (%s)."
+            registrar("Aviso: não consegui gravar a figura colada da camada %s (%s)."
                       % (figura["camada"], erro))
             continue
         xmin, ymin, xmax, ymax = figura["caixa"]
@@ -1530,7 +1530,7 @@ def _gravar_grupos(grupos, saida, formato, epsg, registrar, ordem=None):
             with fiona.open(saida, "w", driver="GPKG", layer=nome, crs=crs,
                             schema=_esquema(chave)) as destino:
                 destino.writerecords(feicoes)
-            registrar("  camada '%s': %d feicoes" % (nome, len(feicoes)))
+            registrar("  camada '%s': %d feições" % (nome, len(feicoes)))
             camadas_projeto.append(
                 {"nome": nome, "geometria": chave[1], "chave": chave,
                  "fonte": "./%s|layername=%s" % (os.path.basename(saida), nome)})
@@ -1567,7 +1567,7 @@ def _gravar_grupos(grupos, saida, formato, epsg, registrar, ordem=None):
             gerados.append(destino_shp)
             camadas_projeto.append({"nome": nome, "geometria": chave[1],
                                     "chave": chave, "fonte": "./%s.shp" % nome})
-            registrar("  %s.shp: %d feicoes" % (nome, len(feicoes)))
+            registrar("  %s.shp: %d feições" % (nome, len(feicoes)))
 
     else:   # GeoJSON
         pasta = os.path.splitext(saida)[0]
@@ -1581,6 +1581,6 @@ def _gravar_grupos(grupos, saida, formato, epsg, registrar, ordem=None):
             gerados.append(destino_json)
             camadas_projeto.append({"nome": nome, "geometria": chave[1],
                                     "chave": chave, "fonte": "./%s.geojson" % nome})
-            registrar("  %s.geojson: %d feicoes" % (nome, len(feicoes)))
+            registrar("  %s.geojson: %d feições" % (nome, len(feicoes)))
 
     return gerados, camadas_projeto

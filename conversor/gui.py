@@ -87,13 +87,13 @@ class SeletorCRS(ttk.Frame):
             if self.ao_mudar:
                 self.ao_mudar()
         else:
-            self.aviso.config(text="Codigo EPSG desconhecido." if epsg else "")
+            self.aviso.config(text="Código EPSG desconhecido." if epsg else "")
 
     def _atualizar_aviso(self, epsg):
         if not crs_presets.eh_projetado(epsg):
             self.aviso.config(
-                text="Atencao: este sistema usa graus. No AutoCAD o desenho fica "
-                     "minusculo e nao da para medir. Prefira um UTM.")
+                text="Atenção: este sistema usa graus. No AutoCAD o desenho fica "
+                     "minúsculo e não dá para medir. Prefira um UTM.")
         else:
             self.aviso.config(text="")
 
@@ -109,7 +109,7 @@ class AbaQgisParaCad(ttk.Frame):
         linha = 0
 
         # ---- 1. camadas
-        caixa = ttk.LabelFrame(self, text=" 1. Camadas do QGIS que serao convertidas ",
+        caixa = ttk.LabelFrame(self, text=" 1. Camadas do QGIS que serão convertidas ",
                                padding=8)
         caixa.grid(row=linha, column=0, sticky="we", pady=(0, 8))
         caixa.columnconfigure(0, weight=1)
@@ -140,7 +140,7 @@ class AbaQgisParaCad(ttk.Frame):
         self.rotulo_origem.grid(row=0, column=1, sticky="w")
 
         self.forcar_origem = tk.BooleanVar(value=False)
-        ttk.Checkbutton(caixa, text="O arquivo nao informa - eu declaro:",
+        ttk.Checkbutton(caixa, text="O arquivo não informa - eu declaro:",
                         variable=self.forcar_origem, command=self._alternar_origem
                         ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(4, 0))
         self.crs_origem = SeletorCRS(caixa, crs_presets.PADRAO)
@@ -186,7 +186,7 @@ class AbaQgisParaCad(ttk.Frame):
 
         self.salvar_csv = tk.BooleanVar(value=app.cfg["salvar_atributos_csv"])
         ttk.Checkbutton(caixa, text="Salvar a tabela de atributos num .csv ao lado "
-                                    "(o DXF nao guarda atributos)",
+                                    "(o DXF não guarda atributos)",
                         variable=self.salvar_csv
                         ).grid(row=4, column=0, columnspan=2, sticky="w")
         linha += 1
@@ -227,7 +227,7 @@ class AbaQgisParaCad(ttk.Frame):
         try:
             camadas = convert.listar_camadas(caminho)
         except convert.ErroConversao as erro:
-            messagebox.showerror("Nao consegui abrir", str(erro))
+            messagebox.showerror("Não consegui abrir", str(erro))
             return
 
         escolhidas = camadas
@@ -240,12 +240,12 @@ class AbaQgisParaCad(ttk.Frame):
             try:
                 epsg, campos, total, _tipo = convert.inspecionar(caminho, camada)
             except Exception as erro:
-                messagebox.showerror("Nao consegui ler a camada",
+                messagebox.showerror("Não consegui ler a camada",
                                      "Camada '%s':\n%s" % (camada, erro))
                 continue
             self.itens.append({"caminho": caminho, "camada": camada,
                                "campos": campos, "epsg": epsg})
-            self.lista.insert(tk.END, "%s  ::  %s   (%s feicoes)"
+            self.lista.insert(tk.END, "%s  ::  %s   (%s feições)"
                               % (os.path.basename(caminho), camada,
                                  total if total is not None else "?"))
         self._atualizar_derivados()
@@ -255,7 +255,7 @@ class AbaQgisParaCad(ttk.Frame):
         janela.title("Camadas de %s" % os.path.basename(caminho))
         janela.transient(self.winfo_toplevel())
         janela.grab_set()
-        ttk.Label(janela, text="Este arquivo tem varias camadas. Quais converter?",
+        ttk.Label(janela, text="Este arquivo tem várias camadas. Quais converter?",
                   padding=10).pack()
         lista = tk.Listbox(janela, selectmode=tk.EXTENDED, height=min(12, len(camadas)),
                            width=44)
@@ -300,7 +300,7 @@ class AbaQgisParaCad(ttk.Frame):
         codigos = {item["epsg"] for item in self.itens}
         if codigos == {None}:
             self.rotulo_origem.config(
-                text="nao informado pelo arquivo - marque a opcao abaixo",
+                text="não informado pelo arquivo - marque a opção abaixo",
                 foreground="#b35c00")
             self.forcar_origem.set(True)
             self._alternar_origem()
@@ -311,7 +311,7 @@ class AbaQgisParaCad(ttk.Frame):
                                       foreground="#0a6")
         else:
             self.rotulo_origem.config(
-                text="camadas em sistemas diferentes - cada uma sera reprojetada",
+                text="camadas em sistemas diferentes - cada uma será reprojetada",
                 foreground="#555")
 
         # so oferece campos presentes em TODAS as camadas, senao a conversao
@@ -350,7 +350,7 @@ class AbaQgisParaCad(ttk.Frame):
             return
         saida = self.saida.get().strip()
         if not saida:
-            messagebox.showwarning("Faltou a saida", "Escolha onde salvar o desenho.")
+            messagebox.showwarning("Faltou a saída", "Escolha onde salvar o desenho.")
             return
         epsg_destino = self.crs_destino.obter()
         if not epsg_destino or not crs_presets.valido(epsg_destino):
@@ -388,7 +388,7 @@ class AbaCadParaQgis(ttk.Frame):
     """AutoCAD -> QGIS."""
 
     FORMATOS = [("GeoPackage (.gpkg) - um arquivo com todas as camadas", "GPKG"),
-                ("Shapefile (.shp) - uma pasta com varios arquivos", "ESRI Shapefile"),
+                ("Shapefile (.shp) - uma pasta com vários arquivos", "ESRI Shapefile"),
                 ("GeoJSON (.geojson)", "GeoJSON")]
 
     def __init__(self, pai, app):
@@ -409,17 +409,17 @@ class AbaCadParaQgis(ttk.Frame):
         self.entrada.bind("<Return>", lambda _e: self._atualizar_painel())
         self.entrada.bind("<FocusOut>", lambda _e: self._atualizar_painel())
         self.escolher_camadas = tk.BooleanVar(value=False)
-        ttk.Checkbutton(caixa, text="Escolher as camadas que vao para a conversao "
+        ttk.Checkbutton(caixa, text="Escolher as camadas que vão para a conversão "
                                     "(mostra o desenho ao lado)",
                         variable=self.escolher_camadas, command=self._alternar_camadas
                         ).grid(row=2, column=0, columnspan=2, sticky="w", pady=(6, 0))
         linha += 1
 
-        caixa = ttk.LabelFrame(self, text=" 2. Em que coordenadas o desenho esta ",
+        caixa = ttk.LabelFrame(self, text=" 2. Em que coordenadas o desenho está ",
                                padding=8)
         caixa.grid(row=linha, column=0, sticky="we", pady=(0, 8))
         caixa.columnconfigure(0, weight=1)
-        ttk.Label(caixa, text="O DXF nao guarda essa informacao, entao ela precisa "
+        ttk.Label(caixa, text="O DXF não guarda essa informação, então ela precisa "
                               "ser declarada:", foreground="#555"
                   ).grid(row=0, column=0, sticky="w")
         self.crs_origem = SeletorCRS(caixa, app.cfg["epsg_cad"])
@@ -428,7 +428,7 @@ class AbaCadParaQgis(ttk.Frame):
         self.rotulo_detectado.grid(row=2, column=0, sticky="w")
         linha += 1
 
-        caixa = ttk.LabelFrame(self, text=" 3. Formato de saida ", padding=8)
+        caixa = ttk.LabelFrame(self, text=" 3. Formato de saída ", padding=8)
         caixa.grid(row=linha, column=0, sticky="we", pady=(0, 8))
         caixa.columnconfigure(0, weight=1)
         self.formato = tk.StringVar(value=app.cfg["formato_saida"])
@@ -443,13 +443,13 @@ class AbaCadParaQgis(ttk.Frame):
                                     "AutoCAD", variable=self.separar
                         ).grid(row=12, column=0, sticky="w", pady=(6, 0))
         self.fechadas = tk.BooleanVar(value=app.cfg["polilinha_fechada_vira_area"])
-        ttk.Checkbutton(caixa, text="Transformar polilinhas fechadas em areas "
-                                    "(para calcular area; deixe desmarcado se "
-                                    "forem curvas de nivel)", variable=self.fechadas
+        ttk.Checkbutton(caixa, text="Transformar polilinhas fechadas em áreas "
+                                    "(para calcular área; deixe desmarcado se "
+                                    "forem curvas de nível)", variable=self.fechadas
                         ).grid(row=13, column=0, sticky="w")
         self.sem_textos = tk.BooleanVar(value=app.cfg["sem_textos_e_hachuras"])
-        ttk.Checkbutton(caixa, text="Nao levar textos nem hachuras (juntando as camadas "
-                                    "em um arquivo por tipo, saem so pontos, linhas e areas)",
+        ttk.Checkbutton(caixa, text="Não levar textos nem hachuras (juntando as camadas "
+                                    "em um arquivo por tipo, saem só pontos, linhas e áreas)",
                         variable=self.sem_textos).grid(row=17, column=0, sticky="w")
         self.imagens = tk.BooleanVar(value=app.cfg["incluir_imagens"])
         ttk.Checkbutton(caixa, text="Trazer as imagens do desenho (tabelas coladas, "
@@ -458,12 +458,12 @@ class AbaCadParaQgis(ttk.Frame):
                         ).grid(row=16, column=0, sticky="w")
 
         self.gerar_projeto = tk.BooleanVar(value=app.cfg["gerar_projeto_qgis"])
-        ttk.Checkbutton(caixa, text="Criar tambem um projeto .qgs que abre com "
+        ttk.Checkbutton(caixa, text="Criar também um projeto .qgs que abre com "
                                     "dois cliques", variable=self.gerar_projeto
                         ).grid(row=14, column=0, sticky="w")
         ttk.Label(caixa, text="Sem o projeto, arraste o arquivo para a janela do QGIS: "
                               "vem tudo, inclusive as imagens (Camada > Adicionar "
-                              "Camada Vetorial nao traz as imagens).",
+                              "Camada Vetorial não traz as imagens).",
                   foreground="#555", wraplength=620
                   ).grid(row=15, column=0, sticky="w", padx=(20, 0))
         linha += 1
@@ -603,7 +603,7 @@ class AbaCadParaQgis(ttk.Frame):
 
         if caminho.lower().endswith(".dwg") and not dwg.disponivel():
             self.aviso_dwg.config(
-                text="Este e um arquivo .dwg e o ODA File Converter nao esta "
+                text="Este é um arquivo .dwg e o ODA File Converter não está "
                      "instalado. Clique em CONVERTER para ver como instalar, ou "
                      "salve o desenho como .dxf no AutoCAD.")
         else:
@@ -642,7 +642,7 @@ class AbaCadParaQgis(ttk.Frame):
         if entrada.lower().endswith(".dwg") and not dwg.disponivel():
             if messagebox.askyesno("Arquivo .dwg",
                                    dwg.MENSAGEM_AUSENTE +
-                                   "\n\nAbrir a pagina de download agora?"):
+                                   "\n\nAbrir a página de download agora?"):
                 webbrowser.open(dwg.LINK_DOWNLOAD)
             return
 
@@ -652,7 +652,7 @@ class AbaCadParaQgis(ttk.Frame):
             if not (self.painel.pronto and self.painel.caminho == entrada):
                 messagebox.showwarning(
                     "Camadas",
-                    "Aguarde: o programa ainda nao terminou de ler as camadas do desenho.\n\n"
+                    "Aguarde: o programa ainda não terminou de ler as camadas do desenho.\n\n"
                     "Quando a lista aparecer ao lado, marque as camadas e converta de novo. "
                     "Para converter tudo, desmarque \"Escolher as camadas\".")
                 return
@@ -689,8 +689,8 @@ class AbaCadParaQgis(ttk.Frame):
                 if n_linhas or n_textos:
                     registrar("%s no desenho." % contar_escolhidas(n_linhas, n_textos))
                 if n_textos and self.sem_textos.get():
-                    registrar("Aviso: %s no desenho ficam de fora, porque a opcao \"Nao levar "
-                              "textos nem hachuras\" esta marcada."
+                    registrar("Aviso: %s no desenho ficam de fora, porque a opção \"Não levar "
+                              "textos nem hachuras\" está marcada."
                               % ("o texto escolhido" if n_textos == 1
                                  else "os %d textos escolhidos" % n_textos))
                 return convert.cad_para_qgis(
@@ -755,7 +755,7 @@ class App(tk.Tk):
         self.after(100, self._drenar)
         self.registrar("Pronto. O DXF funciona sem instalar mais nada; "
                        ".dwg precisa do ODA File Converter (%s)."
-                       % ("instalado" if dwg.disponivel() else "nao instalado"))
+                       % ("instalado" if dwg.disponivel() else "não instalado"))
 
     def mostrar_registro(self, mostrar):
         """Mostra ou esconde o quadro "O que aconteceu" (o desenho ampliado usa o espaco)."""
@@ -809,7 +809,7 @@ class App(tk.Tk):
                     self.config(cursor="")
                     self._tarefa_terminou()
                     self.registrar("ERRO: " + mensagem)
-                    messagebox.showerror("Nao deu certo", mensagem)
+                    messagebox.showerror("Não deu certo", mensagem)
         except queue.Empty:
             pass
         self.after(100, self._drenar)
@@ -822,11 +822,11 @@ class App(tk.Tk):
 
     def _avisar_sucesso(self, resultado):
         arquivos = resultado.get("arquivos", [])
-        self.registrar("Pronto! %d feicoes convertidas." % resultado.get("feicoes", 0))
+        self.registrar("Pronto! %d feições convertidas." % resultado.get("feicoes", 0))
         for caminho in arquivos:
             self.registrar("  -> " + caminho)
         pasta = os.path.dirname(arquivos[0]) if arquivos else None
-        mensagem = "Conversao concluida: %d feicoes.\n\n%s" % (
+        mensagem = "Conversão concluída: %d feições.\n\n%s" % (
             resultado.get("feicoes", 0),
             "\n".join(os.path.basename(a) for a in arquivos[:8]))
 
@@ -838,11 +838,11 @@ class App(tk.Tk):
         elif arquivos and not arquivos[0].lower().endswith((".dxf", ".dwg")):
             mensagem += ("\n\nNo QGIS, arraste o arquivo para a janela do QGIS: vem "
                          "tudo, inclusive as imagens.\n(Camada > Adicionar Camada > "
-                         "Adicionar Camada Vetorial nao traz as imagens.)\nO menu "
-                         "'Abrir Projeto' NAO serve para dados - ele so aceita .qgs "
+                         "Adicionar Camada Vetorial não traz as imagens.)\nO menu "
+                         "'Abrir Projeto' NÃO serve para dados - ele só aceita .qgs "
                          "e .qgz.")
 
-        if pasta and messagebox.askyesno("Concluido", mensagem + "\n\nAbrir a pasta?"):
+        if pasta and messagebox.askyesno("Concluído", mensagem + "\n\nAbrir a pasta?"):
             try:
                 os.startfile(pasta)
             except Exception:

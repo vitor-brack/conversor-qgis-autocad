@@ -45,7 +45,7 @@ from . import cad_ezdxf, convert, dxf_estilo, fora_da_area
 GEOMETRIA = ("ponto", "linha", "area")
 ORDEM = ("ponto", "linha", "area", "texto", "hachura", "imagem")
 ROTULOS = {"ponto": ("ponto", "pontos"), "linha": ("linha", "linhas"),
-           "area": ("area", "areas"), "texto": ("texto", "textos"),
+           "area": ("área", "áreas"), "texto": ("texto", "textos"),
            "hachura": ("hachura", "hachuras"), "imagem": ("figura", "figuras")}
 
 

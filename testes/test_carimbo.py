@@ -156,7 +156,7 @@ def test_imagem(conv):
         aux = fp.read()
     assert "<SRS" in aux and "SIRGAS 2000" in aux and "UTM zone 22S" in aux, \
         "sistema de coordenadas ao lado da imagem"
-    assert any("NAO encontrada" in m and "foto_que_nao_existe.jpg" in m for m in conv.log), \
+    assert any("NÃO encontrada" in m and "foto_que_nao_existe.jpg" in m for m in conv.log), \
         "imagem faltante avisada no log"
     assert conv.res["imagens"] == 1, "uma imagem incluida -> %d" % conv.res["imagens"]
 

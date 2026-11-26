@@ -120,7 +120,7 @@ def test_alternar_marca_e_desmarca_e_o_resumo_acompanha(painel):
     painel.alternar("Carimbo")
     assert "Carimbo" in painel.marcadas and len(painel.marcadas) == antes + 1
     assert painel.estado_da_caixa("Carimbo") == "marcada"
-    assert "Vai para a conversao: 1 camada inteira" in painel.resumo.get(), \
+    assert "Vai para a conversão: 1 camada inteira" in painel.resumo.get(), \
         "o resumo diz o que vai para a conversao -> %r" % painel.resumo.get()
     painel.alternar("Carimbo")
     assert "Carimbo" not in painel.marcadas
@@ -315,7 +315,7 @@ def test_o_resumo_junta_as_camadas_marcadas_e_as_linhas_escolhidas(painel):
     painel.alternar("Carimbo")
     painel.clicar(*borda_de_clique(painel), ctrl=True)
     resumo = painel.resumo.get()
-    assert resumo == "Vai para a conversao: 1 camada inteira e 1 linha escolhida no desenho.", \
+    assert resumo == "Vai para a conversão: 1 camada inteira e 1 linha escolhida no desenho.", \
         resumo
 
 
@@ -492,7 +492,7 @@ def test_marcar_uma_cor_deixa_a_camada_pela_metade(painel_por_cor):
     assert p.estado_da_caixa(("A", HEX_AZUL)) == "marcada"
     assert p.estado_da_caixa("A") == "parcial"
     assert p.marcadas == set(), "a camada inteira, nao -> %s" % p.marcadas
-    assert coluna(p, "A") == "so azul" and coluna(p, ("A", HEX_AZUL)) == "tudo"
+    assert coluna(p, "A") == "só azul" and coluna(p, ("A", HEX_AZUL)) == "tudo"
     p.alternar(("A", HEX_VERMELHO))
     assert p.estado_da_caixa("A") == "marcada" and p.marcadas == {"A"}
     assert coluna(p, "A") == "tudo"

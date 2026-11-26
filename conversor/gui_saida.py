@@ -68,11 +68,11 @@ def problema_no_nome(nome, formato):
         return ("Digite o nome do arquivo." if grava_arquivo(formato)
                 else "Digite o nome da pasta.")
     if any(c in _PROIBIDOS or ord(c) < 32 for c in nome):
-        return "O nome nao pode ter estes caracteres: \\ / : * ? \" < > |"
+        return "O nome não pode ter estes caracteres: \\ / : * ? \" < > |"
     if nome.endswith("."):
-        return "O nome nao pode terminar com ponto."
+        return "O nome não pode terminar com ponto."
     if nome.split(".")[0].strip().upper() in _RESERVADOS:
-        return "O Windows nao aceita \"%s\" como nome." % nome.split(".")[0].strip()
+        return "O Windows não aceita \"%s\" como nome." % nome.split(".")[0].strip()
     if not grava_arquivo(formato) and "." in nome:
         # a conversao tira o que vem depois do ultimo ponto para achar a pasta
         return "Neste formato o nome vira o de uma pasta: tire o ponto do nome."
@@ -84,7 +84,7 @@ class CampoSaida(ttk.Frame):
     formato ao lado e um aviso embaixo: o que vai ser criado, ou o que esta errado."""
 
     PRIMEIRO_USO = ("Escolha o desenho no passo 1: o programa sugere a pasta e o nome. "
-                    "Voce tambem pode escolher a pasta aqui.")
+                    "Você também pode escolher a pasta aqui.")
 
     def __init__(self, pai, formato):
         super().__init__(pai)
@@ -240,11 +240,11 @@ class CampoSaida(ttk.Frame):
         caminho = self.caminho_saida()
         if grava_arquivo(formato):
             if os.path.isfile(caminho):
-                return ("Ja existe um arquivo com este nome nesta pasta: ele sera "
-                        "substituido.", COR_AVISO)
+                return ("Já existe um arquivo com este nome nesta pasta: ele será "
+                        "substituído.", COR_AVISO)
             return "", COR_NOTA
         if os.path.isdir(caminho):
-            return ("Ja existe a pasta \"%s\": os arquivos de mesmo nome dentro dela "
-                    "serao substituidos." % self.nome(), COR_AVISO)
+            return ("Já existe a pasta \"%s\": os arquivos de mesmo nome dentro dela "
+                    "serão substituídos." % self.nome(), COR_AVISO)
         return ("Cria a pasta \"%s\" com um arquivo %s para cada camada."
                 % (self.nome(), ARQUIVOS_DA_PASTA.get(formato, "")), COR_NOTA)

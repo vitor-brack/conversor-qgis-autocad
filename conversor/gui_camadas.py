@@ -166,7 +166,7 @@ def _distancia(p, a, b):
 class PainelCamadas(ttk.LabelFrame):
 
     def __init__(self, pai, ao_registrar=None, ao_ampliar=None):
-        super().__init__(pai, text=" Camadas que vao para a conversao ", padding=8)
+        super().__init__(pai, text=" Camadas que vão para a conversão ", padding=8)
         self.ao_registrar = ao_registrar or (lambda _texto: None)
         # quem esta em volta abre espaco para o desenho grande (ver ampliar)
         self.ao_ampliar = ao_ampliar or (lambda _ligado: None)
@@ -273,7 +273,7 @@ class PainelCamadas(ttk.LabelFrame):
                                    show="tree headings", height=8, selectmode="browse")
         self.arvore.heading("#0", text="Camada", anchor="center")
         self.arvore.heading("conteudo", text="O que tem", anchor="center")
-        self.arvore.heading("vai", text="Na conversao", anchor="center")
+        self.arvore.heading("vai", text="Na conversão", anchor="center")
         self.arvore.column("#0", width=250, minwidth=160, stretch=True)
         self.arvore.column("conteudo", width=170, minwidth=110, stretch=True)
         self.arvore.column("vai", width=140, minwidth=90, stretch=False)
@@ -304,7 +304,7 @@ class PainelCamadas(ttk.LabelFrame):
         opcoes.grid(row=3, column=0, sticky="w", pady=(6, 0))
         ttk.Checkbutton(opcoes, text="Mostrar camadas desligadas no AutoCAD",
                         variable=self.mostrar_ocultas).grid(row=0, column=0, padx=(0, 18))
-        ttk.Checkbutton(opcoes, text="Na saida, uma camada do QGIS para cada cor",
+        ttk.Checkbutton(opcoes, text="Na saída, uma camada do QGIS para cada cor",
                         variable=self.separar_por_cor).grid(row=0, column=1)
         # o que sai da frente quando o desenho e ampliado
         self._partes_da_lista = (barra, quadro, opcoes)
@@ -364,7 +364,7 @@ class PainelCamadas(ttk.LabelFrame):
         self.rotulo_fora = ttk.Label(aviso, textvariable=self.aviso_fora, foreground="#b35c00",
                                      wraplength=520, justify="left")
         self.caixa_fora = ttk.Checkbutton(
-            aviso, text="Deixar de fora essas feicoes (recomendado)", variable=self.ignorar_fora)
+            aviso, text="Deixar de fora essas feições (recomendado)", variable=self.ignorar_fora)
 
     def _mostrar(self, qual):
         """Mostra o quadro de estado (vazio, carregando, erro...) ou a lista com o desenho."""
@@ -406,7 +406,7 @@ class PainelCamadas(ttk.LabelFrame):
         self.ids = None
         self.liberar()
         self._estado("vazio", "Escolha o desenho do AutoCAD no passo 1 e as camadas "
-                              "dele aparecem aqui, com uma previa.")
+                              "dele aparecem aqui, com uma prévia.")
 
     def carregar(self, caminho):
         """Le o desenho em segundo plano. O DWG passa antes pelo ODA."""
@@ -470,12 +470,12 @@ class PainelCamadas(ttk.LabelFrame):
             self._depois_fila = self.after(80, self._recolher)
 
     def _falhou(self, erro):
-        self.ao_registrar("Nao consegui ler o desenho: %s" % erro)
+        self.ao_registrar("Não consegui ler o desenho: %s" % erro)
         if isinstance(erro, (convert.ErroConversao, dwg.ErroDWG)):
             texto = str(erro)
         else:
-            texto = ("Nao consegui ler este desenho. Ele pode estar corrompido ou ser de "
-                     "uma versao que o programa nao abre. Os detalhes estao no quadro "
+            texto = ("Não consegui ler este desenho. Ele pode estar corrompido ou ser de "
+                     "uma versão que o programa não abre. Os detalhes estão no quadro "
                      "\"O que aconteceu\".")
         self._estado("erro", texto)
 
@@ -493,14 +493,14 @@ class PainelCamadas(ttk.LabelFrame):
         self._recalcular_itens()
         if not lida.camadas:
             # o GDAL abre ate arquivo quebrado como um DXF vazio
-            self._estado("erro", "Nao encontrei nada para desenhar neste arquivo. Ele pode "
+            self._estado("erro", "Não encontrei nada para desenhar neste arquivo. Ele pode "
                                  "estar vazio, corrompido ou ser de um formato que o "
-                                 "programa nao le.")
+                                 "programa não lê.")
             return
         if not any(c.tem_geometria for c in lida.camadas):
             self._estado("sem_geometria",
-                         "Este desenho nao tem pontos, linhas nem areas para converter "
-                         "(so textos ou hachuras).")
+                         "Este desenho não tem pontos, linhas nem áreas para converter "
+                         "(só textos ou hachuras).")
             return
         self._sem_aviso_de_ocultas = True            # desenho novo: volta a mostrar so o ligado
         self.mostrar_ocultas.set(False)
@@ -530,8 +530,8 @@ class PainelCamadas(ttk.LabelFrame):
         d = p.distancia_fora
         distancia = ("%.0f km" % (d / 1000.0)) if self.unidade_em_metros else "%.4g unidades" % d
         self.aviso_fora.set(
-            "%d feicoes (%s) estao a ate %s do desenho. Parecem lixo do desenho: "
-            "na entrega cairiam longe do terreno, e a previa ignora elas."
+            "%d feições (%s) estão a até %s do desenho. Parecem lixo do desenho: "
+            "na entrega cairiam longe do terreno, e a prévia ignora elas."
             % (p.fora_total, ", ".join(c.nome for c in p.camadas if c.fora)[:90], distancia))
         self.rotulo_fora.grid(row=0, column=0, sticky="w")
         self.caixa_fora.grid(row=1, column=0, sticky="w")
@@ -630,7 +630,7 @@ class PainelCamadas(ttk.LabelFrame):
             if len(cores) > 2:
                 partes.append("%d de %d cores" % (len(cores), len(alvo)))
             elif cores:
-                partes.append("so " + " e ".join(self.nome_da_cor(k) for k in cores))
+                partes.append("só " + " e ".join(self.nome_da_cor(k) for k in cores))
         linhas, textos = self._escolhidas_em(chave, fora_das_marcadas=True)
         if linhas or textos:
             partes.append(contar_escolhidas(linhas, textos))
@@ -791,7 +791,7 @@ class PainelCamadas(ttk.LabelFrame):
             partes.append("%s no desenho" % contar_escolhidas(linhas, textos))
         frase = partes[0] if len(partes) == 1 else "%s e %s" % (", ".join(partes[:-1]),
                                                                   partes[-1])
-        self.resumo.set("Vai para a conversao: %s." % frase)
+        self.resumo.set("Vai para a conversão: %s." % frase)
 
     def _ao_alternar_ocultas(self, *_):
         """A caixinha das desligadas mudou: refaz a lista e o desenho."""
@@ -898,10 +898,10 @@ class PainelCamadas(ttk.LabelFrame):
                 nome = item.nome
             texto = "%s: %s." % (nome, item.resumo() or "vazia")
             if item.oculta:
-                texto += " Desligada no AutoCAD: so vai se marcar a caixa."
+                texto += " Desligada no AutoCAD: só vai se marcar a caixa."
             if (item.tem_desenho and not item.tem_geometria
                     and not item.contagem.get("texto")):
-                texto += " O clique no desenho nao escolhe hachuras e figuras: vao com a caixa."
+                texto += " O clique no desenho não escolhe hachuras e figuras: vão com a caixa."
             self.detalhe.set(texto)
         self._renderizar()
 
@@ -1002,10 +1002,10 @@ class PainelCamadas(ttk.LabelFrame):
             self.tela.itemconfigure(self._item, image="")
             if not self.mostrar_ocultas.get() and any(
                     c.oculta and c.tem_desenho for c in self.previa.camadas):
-                texto = ("No AutoCAD, todas as camadas deste desenho estao desligadas. "
+                texto = ("No AutoCAD, todas as camadas deste desenho estão desligadas. "
                          "Marque \"Mostrar camadas desligadas no AutoCAD\" para ver o desenho.")
             else:
-                texto = "Nenhuma camada tem pontos, linhas ou areas para desenhar."
+                texto = "Nenhuma camada tem pontos, linhas ou áreas para desenhar."
             self.tela.itemconfigure(self._texto, text=texto)
             self.tela.coords(self._texto, largura / 2, altura / 2)
             return
@@ -1114,7 +1114,7 @@ class PainelCamadas(ttk.LabelFrame):
             return "Texto escolhido na camada %s (%s): \"%s\"" % (g.camada, cor, escrito)
         if g.pecas == 1:
             return "Linha escolhida na camada %s (%s)." % (g.camada, cor)
-        return "Linha escolhida na camada %s (%s), feita de %d pecas ligadas pelas pontas." % (
+        return "Linha escolhida na camada %s (%s), feita de %d peças ligadas pelas pontas." % (
             g.camada, cor, g.pecas)
 
     def clicar(self, x, y, ctrl=False):

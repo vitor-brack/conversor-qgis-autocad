@@ -21,10 +21,10 @@ import threading
 LINK_DOWNLOAD = "https://www.opendesign.com/guestfiles/oda_file_converter"
 
 MENSAGEM_AUSENTE = (
-    "Para trabalhar com arquivos .dwg e preciso instalar o ODA File Converter "
+    "Para trabalhar com arquivos .dwg é preciso instalar o ODA File Converter "
     "(gratuito):\n\n"
     "  1. Acesse  " + LINK_DOWNLOAD + "\n"
-    "  2. Baixe a versao 'Windows 8-11 64-bit'\n"
+    "  2. Baixe a versão 'Windows 8-11 64-bit'\n"
     "  3. Instale e abra este programa de novo\n\n"
     "Alternativa sem instalar nada: no AutoCAD, use Arquivo > Salvar Como e "
     "escolha 'AutoCAD 2004/LT2004 DXF (*.dxf)'. O programa converte DXF sem "
@@ -231,8 +231,8 @@ def dwg_para_dxf(caminho_dwg, registrar=None):
                    + glob.glob(os.path.join(saida, "*.DXF")))
         if not gerados:
             raise ErroDWG(
-                "O ODA File Converter nao gerou nenhum DXF a partir de '%s'.\n"
-                "O arquivo pode estar corrompido, protegido por senha, ou nao ser "
+                "O ODA File Converter não gerou nenhum DXF a partir de '%s'.\n"
+                "O arquivo pode estar corrompido, protegido por senha, ou não ser "
                 "um DWG valido." % nome)
         return gerados[0]
     except BaseException:
@@ -285,7 +285,7 @@ def _dxf_para_dwg(pasta, caminho_dxf, caminho_dwg_final, registrar):
 
     gerados = glob.glob(os.path.join(saida, "*.dwg")) + glob.glob(os.path.join(saida, "*.DWG"))
     if not gerados:
-        raise ErroDWG("O ODA File Converter nao gerou o arquivo .dwg.")
+        raise ErroDWG("O ODA File Converter não gerou o arquivo .dwg.")
 
     shutil.move(gerados[0], caminho_dwg_final)
     return caminho_dwg_final
