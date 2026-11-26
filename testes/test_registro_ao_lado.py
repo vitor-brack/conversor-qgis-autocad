@@ -254,3 +254,38 @@ def test_o_sistema_da_caixa_2_so_declara_de_onde_o_desenho_vem(app, monkeypatch,
         aba.crs_origem.definir(sistema_antes)
     assert chamadas[0]["epsg_origem"] == epsg
     assert chamadas[0].get("epsg_destino") is None, "o arquivo sai no sistema declarado"
+
+
+# ---------------------------------------------------------------------------
+# Contagem no singular nas telas: "1 feição", nao "1 feições".
+def test_o_fim_da_conversao_conta_uma_feicao_no_singular(app, monkeypatch, tmp_path):
+    from conversor import gui
+    caixas = []
+    monkeypatch.setattr(gui.messagebox, "askyesno",
+                        lambda titulo, texto, *a, **k: caixas.append(texto) or False)
+    arquivo = str(tmp_path / "x.gpkg")
+    app._avisar_sucesso({"feicoes": 1, "arquivos": [arquivo]})
+    assert "Pronto! 1 feição convertida." in app.log.get("1.0", "end")
+    assert "Conversão concluída: 1 feição." in caixas[0], caixas[0]
+    app._avisar_sucesso({"feicoes": 3, "arquivos": [arquivo]})
+    assert "Pronto! 3 feições convertidas." in app.log.get("1.0", "end")
+    assert "Conversão concluída: 3 feições." in caixas[1], caixas[1]
+
+
+def test_a_lista_de_camadas_do_qgis_conta_uma_feicao_no_singular(app, monkeypatch, tmp_path):
+    import fiona
+    from fiona.crs import from_epsg
+    from conversor import gui
+    gpkg = str(tmp_path / "um.gpkg")
+    with fiona.open(gpkg, "w", driver="GPKG", layer="p", crs=from_epsg(31982),
+                    schema={"geometry": "Point", "properties": {"n": "int"}}) as c:
+        c.write({"type": "Feature", "properties": {"n": 1},
+                 "geometry": {"type": "Point", "coordinates": (412000.0, 6712000.0)}})
+    monkeypatch.setattr(gui.filedialog, "askopenfilename", lambda *a, **k: gpkg)
+    aba = app.aba1
+    aba.adicionar()
+    try:
+        assert aba.lista.get(0).endswith("(1 feição)"), aba.lista.get(0)
+    finally:
+        aba.lista.delete(0, "end")
+        aba.itens.clear()

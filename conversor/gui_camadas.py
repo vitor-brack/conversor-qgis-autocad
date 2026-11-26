@@ -529,10 +529,17 @@ class PainelCamadas(ttk.LabelFrame):
             return
         d = p.distancia_fora
         distancia = ("%.0f km" % (d / 1000.0)) if self.unidade_em_metros else "%.4g unidades" % d
-        self.aviso_fora.set(
-            "%d feições (%s) estão a até %s do desenho. Parecem lixo do desenho: "
-            "na entrega cairiam longe do terreno, e a prévia ignora elas."
-            % (p.fora_total, ", ".join(c.nome for c in p.camadas if c.fora)[:90], distancia))
+        nomes = ", ".join(c.nome for c in p.camadas if c.fora)[:90]
+        if p.fora_total == 1:
+            self.aviso_fora.set(
+                "1 feição (%s) está a até %s do desenho. Parece lixo do desenho: "
+                "na entrega cairia longe do terreno, e a prévia ignora ela."
+                % (nomes, distancia))
+        else:
+            self.aviso_fora.set(
+                "%d feições (%s) estão a até %s do desenho. Parecem lixo do desenho: "
+                "na entrega cairiam longe do terreno, e a prévia ignora elas."
+                % (p.fora_total, nomes, distancia))
         self.rotulo_fora.grid(row=0, column=0, sticky="w")
         self.caixa_fora.grid(row=1, column=0, sticky="w")
         self.ignorar_fora.set(True)

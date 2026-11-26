@@ -11,7 +11,7 @@ def main():
         abrir_janela()
         return 0
 
-    from . import convert, crs_presets
+    from . import convert, crs_presets, textos
 
     ap = argparse.ArgumentParser(
         prog="conversor", description="Converte entre formatos do QGIS e do AutoCAD.")
@@ -71,7 +71,7 @@ def main():
         print("ERRO:", erro, file=sys.stderr)
         return 1
 
-    print("Concluído: %d feições" % resultado["feicoes"])
+    print("Concluído: %s" % textos.feicoes(resultado["feicoes"]))
     for caminho in resultado["arquivos"]:
         print("  ->", caminho)
     return 0

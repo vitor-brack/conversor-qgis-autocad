@@ -13,7 +13,7 @@ import pyproj
 from fiona.crs import CRS
 
 from . import (cad_ezdxf, crs_presets, dwg, dxf_estilo, dxf_extras, dxfio,
-               fora_da_area, imagens_cad, qgis_project, textos_cad)
+               fora_da_area, imagens_cad, qgis_project, textos, textos_cad)
 
 warnings.filterwarnings("ignore")
 
@@ -301,7 +301,8 @@ def qgis_para_cad(entradas, saida, epsg_destino, campo_camada=None,
         raise ErroConversao("Nenhuma feição com geometria foi encontrada nos "
                             "arquivos selecionados.")
 
-    registrar("Gravando %d feições em %d camadas..." % (len(feicoes), len(camadas_criadas)))
+    registrar("Gravando %s em %s..." % (textos.feicoes(len(feicoes)),
+                                        textos.quantos(len(camadas_criadas), "camada", "camadas")))
 
     esquema = {"geometry": "Unknown", "properties": {"Layer": "str"}}
     # Por padrao o GDAL grava poligono como HATCH solida: no AutoCAD cada
@@ -347,7 +348,9 @@ def qgis_para_cad(entradas, saida, epsg_destino, campo_camada=None,
                   % dwg.VERSAO_SAIDA_DWG)
 
     if ignoradas:
-        registrar("%d feições sem geometria foram ignoradas." % ignoradas)
+        registrar("%s sem geometria %s." % (textos.feicoes(ignoradas),
+                                            "foi ignorada" if ignoradas == 1
+                                            else "foram ignoradas"))
 
     return {"arquivos": gerados, "feicoes": len(feicoes),
             "camadas": sorted(camadas_criadas), "rotulos": len(rotulos)}
@@ -1097,8 +1100,9 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
 
     total = sum(len(v) for v in grupos.values())
     distintas = {f["properties"][CAMPO_COR] for g in grupos.values() for f in g}
-    registrar("%d feições em %d camadas, %d cores distintas."
-              % (total, len(grupos), len(distintas)))
+    registrar("%s em %s, %s."
+              % (textos.feicoes(total), textos.quantos(len(grupos), "camada", "camadas"),
+                 textos.quantos(len(distintas), "cor distinta", "cores distintas")))
     if grupos_ocultos:
         registrar("%d camadas estavam desligadas ou congeladas no AutoCAD: no QGIS vêm "
                   "desmarcadas (marque a caixinha para ver)." % len(grupos_ocultos))
@@ -1236,8 +1240,9 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
         registrar("%d pontos de definição de cota (camada Defpoints) ficaram de fora: "
                   "o AutoCAD também não os imprime." % defpoints)
     if fora_da_caixa:
-        registrar("%d feições longe do desenho (fora da área principal) ficaram de fora."
-                  % fora_da_caixa)
+        registrar("%s longe do desenho (fora da área principal) %s de fora."
+                  % (textos.feicoes(fora_da_caixa),
+                     "ficou" if fora_da_caixa == 1 else "ficaram"))
     if sem_texto_hachura:
         registrar("%d textos e hachuras ficaram de fora, como pedido." % sem_texto_hachura)
 
@@ -1530,7 +1535,7 @@ def _gravar_grupos(grupos, saida, formato, epsg, registrar, ordem=None):
             with fiona.open(saida, "w", driver="GPKG", layer=nome, crs=crs,
                             schema=_esquema(chave)) as destino:
                 destino.writerecords(feicoes)
-            registrar("  camada '%s': %d feições" % (nome, len(feicoes)))
+            registrar("  camada '%s': %s" % (nome, textos.feicoes(len(feicoes))))
             camadas_projeto.append(
                 {"nome": nome, "geometria": chave[1], "chave": chave,
                  "fonte": "./%s|layername=%s" % (os.path.basename(saida), nome)})
@@ -1567,7 +1572,7 @@ def _gravar_grupos(grupos, saida, formato, epsg, registrar, ordem=None):
             gerados.append(destino_shp)
             camadas_projeto.append({"nome": nome, "geometria": chave[1],
                                     "chave": chave, "fonte": "./%s.shp" % nome})
-            registrar("  %s.shp: %d feições" % (nome, len(feicoes)))
+            registrar("  %s.shp: %s" % (nome, textos.feicoes(len(feicoes))))
 
     else:   # GeoJSON
         pasta = os.path.splitext(saida)[0]
@@ -1581,6 +1586,6 @@ def _gravar_grupos(grupos, saida, formato, epsg, registrar, ordem=None):
             gerados.append(destino_json)
             camadas_projeto.append({"nome": nome, "geometria": chave[1],
                                     "chave": chave, "fonte": "./%s.geojson" % nome})
-            registrar("  %s.geojson: %d feições" % (nome, len(feicoes)))
+            registrar("  %s.geojson: %s" % (nome, textos.feicoes(len(feicoes))))
 
     return gerados, camadas_projeto

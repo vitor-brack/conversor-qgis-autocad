@@ -9,7 +9,7 @@ import traceback
 import webbrowser
 from tkinter import filedialog, messagebox, ttk
 
-from . import __version__, config, convert, crs_presets, dwg, dxfio
+from . import __version__, config, convert, crs_presets, dwg, dxfio, textos
 from .gui_camadas import PainelCamadas, contar_escolhidas
 from .gui_saida import CampoSaida
 
@@ -245,9 +245,9 @@ class AbaQgisParaCad(ttk.Frame):
                 continue
             self.itens.append({"caminho": caminho, "camada": camada,
                                "campos": campos, "epsg": epsg})
-            self.lista.insert(tk.END, "%s  ::  %s   (%s feições)"
+            self.lista.insert(tk.END, "%s  ::  %s   (%s)"
                               % (os.path.basename(caminho), camada,
-                                 total if total is not None else "?"))
+                                 textos.feicoes(total if total is not None else "?")))
         self._atualizar_derivados()
 
     def _perguntar_camadas(self, caminho, camadas):
@@ -822,12 +822,14 @@ class App(tk.Tk):
 
     def _avisar_sucesso(self, resultado):
         arquivos = resultado.get("arquivos", [])
-        self.registrar("Pronto! %d feições convertidas." % resultado.get("feicoes", 0))
+        n = resultado.get("feicoes", 0)
+        self.registrar("Pronto! %s %s." % (textos.feicoes(n),
+                                           "convertida" if n == 1 else "convertidas"))
         for caminho in arquivos:
             self.registrar("  -> " + caminho)
         pasta = os.path.dirname(arquivos[0]) if arquivos else None
-        mensagem = "Conversão concluída: %d feições.\n\n%s" % (
-            resultado.get("feicoes", 0),
+        mensagem = "Conversão concluída: %s.\n\n%s" % (
+            textos.feicoes(n),
             "\n".join(os.path.basename(a) for a in arquivos[:8]))
 
         projeto = resultado.get("projeto")

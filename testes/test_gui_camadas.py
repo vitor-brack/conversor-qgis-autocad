@@ -871,3 +871,28 @@ def test_desenho_sem_nenhuma_geometria_diz_isso(raiz, tmp_path):
         assert "pontos, linhas" in p.mensagem_de_estado.get(), p.mensagem_de_estado.get()
     finally:
         p.destroy()
+
+
+def test_o_aviso_de_feicoes_longe_concorda_com_o_numero(raiz, tmp_path):
+    from conversor.gui_camadas import PainelCamadas
+    p = PainelCamadas(raiz)
+    try:
+        p.definir_previa(previa.ler(_com_lixo(tmp_path)), dxf_pronto=None)
+        plural = p.aviso_fora.get()
+        assert plural.startswith("3 feições (CURVAS) estão a até "), plural
+        assert "Parecem lixo" in plural and "cairiam" in plural and "ignora elas" in plural
+
+        doc = ezdxf.new("R2010")
+        doc.layers.add("CURVAS")
+        msp = doc.modelspace()
+        bom = [(448000 + 20 * i, 6743000 + 30 * (i % 7)) for i in range(120)]
+        msp.add_lwpolyline(bom, dxfattribs={"layer": "CURVAS"})
+        msp.add_lwpolyline([(0, 0), (0, 0)], dxfattribs={"layer": "CURVAS"})
+        um = str(tmp_path / "um_lixo.dxf")
+        doc.saveas(um)
+        p.definir_previa(previa.ler(um), dxf_pronto=None)
+        singular = p.aviso_fora.get()
+        assert singular.startswith("1 feição (CURVAS) está a até "), singular
+        assert "Parece lixo" in singular and "cairia" in singular and "ignora ela." in singular
+    finally:
+        p.destroy()
