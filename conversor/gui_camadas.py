@@ -11,6 +11,13 @@ desenho escolhe so aquela linha (as pecas que se encostam pelas pontas, ver
 previa.Grupo), sem levar a camada nem a cor inteira; segurando Ctrl, soma outras.
 Escolher a camada inteira e na caixa da lista. As duas coisas somam na conversao.
 
+A lista tem uma linha por camada, com as amostras das cores dela; a camada de mais de
+uma cor abre uma linha por cor (no desenho real, quase tudo estava na camada 0 e o
+desenhista diferenciou pela cor). A caixa de cada linha diz o que vai dela: tudo, uma
+parte (algumas cores, ou linhas e textos clicados no desenho) ou nada; a coluna "Na
+conversao" diz qual parte. A opcao "Na saida, uma camada do QGIS para cada cor" so muda
+como a conversao grava, e nao mexe na lista.
+
 A logica de ler e desenhar esta em previa.py e previa_raster.py; aqui so tem
 interface.
 
@@ -37,7 +44,8 @@ from . import convert, dwg, dxf_estilo, previa, previa_raster as pr
 
 LARGURA, ALTURA = 560, 300
 MARGEM_DO_VER_TUDO = 16                          # pixels de folga em volta do "Ver tudo"
-MARCADA, DESMARCADA = "☑", "☐"        # caixa marcada e desmarcada
+MAX_AMOSTRAS = 3                                # amostras de cor ao lado da caixa da camada
+COR_DA_MARCA = "#0067c0"                        # a caixa marcada: o azul do Windows 11
 FATOR_DO_ZOOM = 1.25
 LIMITE_DO_CLIQUE = 4                            # pixels: abaixo disto o arrasto e um clique
 RAIO_DO_CLIQUE = 6                              # pixels: a linha mais perto que isto e a clicada
@@ -60,6 +68,100 @@ def contar_escolhidas(linhas, textos):
     return "%s %s%s" % (" e ".join(partes), genero, "s" if linhas + textos > 1 else "")
 
 
+def _misturar(cor, outra, quanto):
+    """A cor `cor` levada `quanto` (0 a 1) na direcao de `outra`."""
+    a = [int(cor[i:i + 2], 16) for i in (1, 3, 5)]
+    b = [int(outra[i:i + 2], 16) for i in (1, 3, 5)]
+    return _hex(int(round(x + (y - x) * quanto)) for x, y in zip(a, b))
+
+
+class _Fotos:
+    """As imagens da coluna da camada: a caixa de marcar, com os tres estados, e as amostras
+    das cores, desenhadas pixel a pixel no tamanho da tela (o glifo da fonte saia miudo e
+    quase do tamanho da amostra, e as duas coisas se confundiam)."""
+
+    def __init__(self, mestre):
+        self.mestre = mestre
+        try:
+            escala = float(mestre.tk.call("tk", "scaling")) / (96.0 / 72.0)
+        except (tk.TclError, ValueError):
+            escala = 1.0
+        escala = max(escala, 1.0)
+        self.lado = int(round(13 * escala))
+        self.amostra = int(round(10 * escala))
+        self.vao = max(2, int(round(3 * escala)))
+        self.entre = int(round(8 * escala))
+        self._guardadas = {}
+
+    def desenhar(self, estado, cores, ativa=True, lugares=MAX_AMOSTRAS):
+        """A imagem da caixa no `estado` ("marcada", "parcial", "vazia"; `ativa` falso: nao
+        ha o que levar) com as `cores` ao lado, em `lugares` lugares (a largura e sempre a
+        mesma, para os nomes ficarem alinhados)."""
+        chave = (estado, tuple(cores), bool(ativa), lugares)
+        foto = self._guardadas.get(chave)
+        if foto is None:
+            foto = self._guardadas[chave] = self._nova(estado, cores, ativa, lugares)
+        return foto
+
+    def _nova(self, estado, cores, ativa, lugares):
+        lado, amostra = self.lado, self.amostra
+        largura = lado + self.entre + lugares * (amostra + self.vao) - self.vao
+        foto = tk.PhotoImage(master=self.mestre, width=largura, height=lado)
+        self._caixa(foto, estado, ativa)
+        x, y = lado + self.entre, (lado - amostra) // 2
+        for cor in list(cores)[:lugares]:
+            foto.put(_misturar(cor, "#000000", 0.35), to=(x, y, x + amostra, y + amostra))
+            foto.put(cor, to=(x + 1, y + 1, x + amostra - 1, y + amostra - 1))
+            x += amostra + self.vao
+        return foto
+
+    def _caixa(self, foto, estado, ativa):
+        s = self.lado
+        if not ativa:
+            borda, fundo = "#c6c6c6", "#f3f3f3"
+        elif estado == "vazia":
+            borda, fundo = "#858585", "#ffffff"
+        else:
+            borda = fundo = COR_DA_MARCA
+        foto.put(borda, to=(0, 0, s, s))
+        foto.put(fundo, to=(1, 1, s - 1, s - 1))
+        for x, y in ((0, 0), (s - 1, 0), (0, s - 1), (s - 1, s - 1)):
+            foto.transparency_set(x, y, True)              # os cantos arredondados
+        if not ativa:
+            return
+        grossura = max(2, int(round(s / 6.5)))
+        if estado == "marcada":
+            self._risco(foto, ((0.24, 0.52), (0.42, 0.70), (0.76, 0.30)), max(1.6, s / 7.0))
+        elif estado == "parcial":
+            topo = (s - grossura) // 2
+            foto.put("#ffffff", to=(int(s * 0.25), topo, s - int(s * 0.25), topo + grossura))
+
+    def _risco(self, foto, pontos, grossura):
+        """O visto, em branco sobre o azul: a linha pelos `pontos` (fracoes do lado da caixa),
+        com a borda suave (cada pixel leva o tanto de branco que o traco cobre dele)."""
+        s = self.lado
+        segmentos = [((x0 * s, y0 * s), (x1 * s, y1 * s))
+                     for (x0, y0), (x1, y1) in zip(pontos, pontos[1:])]
+        meia = grossura / 2.0
+        for py in range(1, s - 1):
+            for px in range(1, s - 1):
+                c = (px + 0.5, py + 0.5)
+                d = min(_distancia(c, a, b) for a, b in segmentos)
+                cobre = min(1.0, max(0.0, meia + 0.5 - d))
+                if cobre > 0:
+                    foto.put(_misturar(COR_DA_MARCA, "#ffffff", cobre), (px, py))
+
+
+def _distancia(p, a, b):
+    """A distancia do ponto p ao segmento a-b."""
+    ax, ay = a
+    bx, by = b
+    dx, dy = bx - ax, by - ay
+    t = ((p[0] - ax) * dx + (p[1] - ay) * dy) / float(dx * dx + dy * dy)
+    t = min(1.0, max(0.0, t))
+    return ((p[0] - ax - t * dx) ** 2 + (p[1] - ay - t * dy) ** 2) ** 0.5
+
+
 class PainelCamadas(ttk.LabelFrame):
 
     def __init__(self, pai, ao_registrar=None, ao_ampliar=None):
@@ -76,9 +178,9 @@ class PainelCamadas(ttk.LabelFrame):
         self.estado = "vazio"
         self.previa = None
         self.dxf_pronto = None
-        self.marcadas = set()
+        self.cores_marcadas = set()          # (camada, cor) marcadas na lista
         self.escolhidas = set()              # ids de grupo (previa.Grupo): linhas clicadas
-        self.destaque = None
+        self.destaque = None                 # a linha escolhida na lista: camada ou (camada, cor)
         self.vista = None
         self.ids = None
         self.imagem = None                   # a ultima imagem desenhada
@@ -89,13 +191,15 @@ class PainelCamadas(ttk.LabelFrame):
         self._token = 0
         self._fila = queue.Queue()
         self._pendentes = []                 # pastas temporarias do ODA a apagar
-        self._iid = {}
+        self._iid = {}                       # chave (camada ou (camada, cor)) -> linha da lista
         self._nome_de = {}
-        self._camadas = {}
-        self._fotos = {}
+        self._camadas = {}                   # chave -> previa.Camada ou previa.Unidade
+        self._unidades_de = {}               # camada -> [previa.Unidade]
+        self._nome_cor = {}
+        self._abertas = set()                # camadas com as cores abertas na lista
+        self._fotos = _Fotos(self)
         self._silencio = False
         self._sem_aviso_de_ocultas = False
-        self._sem_aviso_de_cor = False
         self._depois_render = None
         self._depois_fila = None
         self._arrasto = None
@@ -116,7 +220,6 @@ class PainelCamadas(ttk.LabelFrame):
         self._montar_estado()
         self._montar_corpo()
         self.mostrar_ocultas.trace_add("write", self._ao_alternar_ocultas)
-        self.separar_por_cor.trace_add("write", self._ao_alternar_cor)
         self.limpar()
 
     # ------------------------------------------------------------------
@@ -136,48 +239,44 @@ class PainelCamadas(ttk.LabelFrame):
         c.columnconfigure(0, weight=1)
         # a lista fica com as linhas dela (tem barra de rolagem); a altura que sobra na
         # janela vai toda para o desenho
-        c.rowconfigure(2, weight=0)
-        c.rowconfigure(6, weight=1)
+        c.rowconfigure(1, weight=0)
+        c.rowconfigure(7, weight=1)
 
         barra = ttk.Frame(c)
         barra.grid(row=0, column=0, sticky="we")
         barra.columnconfigure(1, weight=1)
-        ttk.Label(barra, text="Buscar:").grid(row=0, column=0, padx=(0, 4))
+        ttk.Label(barra, text="Buscar camada:").grid(row=0, column=0, padx=(0, 6))
         self.campo_busca = ttk.Entry(barra, textvariable=self.busca)
         self.campo_busca.grid(row=0, column=1, sticky="we")
         self.busca.trace_add("write", lambda *_: self.filtrar(self.busca.get(), _do_campo=True))
         ttk.Button(barra, text="Limpar", width=7,
-                   command=lambda: self.filtrar("")).grid(row=0, column=2, padx=(4, 8))
+                   command=lambda: self.filtrar("")).grid(row=0, column=2, padx=(4, 16))
         ttk.Button(barra, text="Marcar todas", command=self.marcar_todas
                    ).grid(row=0, column=3, padx=(0, 4))
         ttk.Button(barra, text="Desmarcar todas", command=self.desmarcar_todas
                    ).grid(row=0, column=4)
 
-        opcoes = ttk.Frame(c)
-        opcoes.grid(row=1, column=0, sticky="w", pady=(4, 0))
-        ttk.Checkbutton(opcoes, text="Mostrar camadas desligadas no AutoCAD",
-                        variable=self.mostrar_ocultas).grid(row=0, column=0, padx=(0, 18))
-        ttk.Checkbutton(opcoes, text="Separar cada camada por cor",
-                        variable=self.separar_por_cor).grid(row=0, column=1)
-
         quadro = ttk.Frame(c)
-        quadro.grid(row=2, column=0, sticky="nsew", pady=(4, 0))
+        quadro.grid(row=1, column=0, sticky="nsew", pady=(6, 0))
         quadro.columnconfigure(0, weight=1)
         quadro.rowconfigure(0, weight=1)
-        self.arvore = ttk.Treeview(quadro, columns=("marca", "nome", "conteudo"),
-                                   show="tree headings", height=7, selectmode="browse")
-        self.arvore.heading("#0", text="")
-        self.arvore.heading("marca", text="")
-        self.arvore.heading("nome", text="Camada")
-        self.arvore.heading("conteudo", text="O que tem")
-        self.arvore.column("#0", width=28, minwidth=28, stretch=False)
-        self.arvore.column("marca", width=30, minwidth=30, stretch=False, anchor="center")
-        self.arvore.column("nome", width=190, minwidth=90)
-        self.arvore.column("conteudo", width=240, minwidth=90)
-        negrito = tkfont.nametofont("TkDefaultFont").copy()
+        fonte = tkfont.nametofont("TkDefaultFont")
+        negrito = fonte.copy()
         negrito.configure(weight="bold")
         self._negrito = negrito                      # o Tk perde a fonte se o Python a descarta
-        self.arvore.tag_configure("apagada", foreground="#7a7a7a")
+        estilo = ttk.Style(self)
+        # linhas mais altas que o padrao do Windows: a caixa e as amostras respiram
+        estilo.configure("Camadas.Treeview",
+                         rowheight=max(fonte.metrics("linespace"), self._fotos.lado) + 9)
+        self.arvore = ttk.Treeview(quadro, columns=("conteudo", "vai"), style="Camadas.Treeview",
+                                   show="tree headings", height=8, selectmode="browse")
+        self.arvore.heading("#0", text="Camada", anchor="w")
+        self.arvore.heading("conteudo", text="O que tem", anchor="w")
+        self.arvore.heading("vai", text="Na conversao", anchor="w")
+        self.arvore.column("#0", width=250, minwidth=160, stretch=True)
+        self.arvore.column("conteudo", width=170, minwidth=110, stretch=True)
+        self.arvore.column("vai", width=140, minwidth=90, stretch=False)
+        self.arvore.tag_configure("apagada", foreground="#8a8a8a")
         self.arvore.tag_configure("marcada", font=negrito)
         self.arvore.grid(row=0, column=0, sticky="nsew")
         rolagem = ttk.Scrollbar(quadro, orient="vertical", command=self.arvore.yview)
@@ -187,28 +286,40 @@ class PainelCamadas(ttk.LabelFrame):
         self.arvore.bind("<<TreeviewSelect>>", self._ao_selecionar)
         self.arvore.bind("<space>", self._espaco)
 
-        rotulo_busca = ttk.Label(c, textvariable=self.aviso_busca, foreground="#555")
-        rotulo_busca.grid(row=3, column=0, sticky="w", pady=(2, 0))
+        # so aparece quando a busca nao acha nada
+        self.rotulo_busca = ttk.Label(c, textvariable=self.aviso_busca, foreground="#555")
+        self.rotulo_busca.grid(row=2, column=0, sticky="w", pady=(4, 0))
+        self.rotulo_busca.grid_remove()
+
+        opcoes = ttk.Frame(c)
+        opcoes.grid(row=3, column=0, sticky="w", pady=(6, 0))
+        ttk.Checkbutton(opcoes, text="Mostrar camadas desligadas no AutoCAD",
+                        variable=self.mostrar_ocultas).grid(row=0, column=0, padx=(0, 18))
+        ttk.Checkbutton(opcoes, text="Na saida, uma camada do QGIS para cada cor",
+                        variable=self.separar_por_cor).grid(row=0, column=1)
         # o que sai da frente quando o desenho e ampliado
-        self._partes_da_lista = (barra, opcoes, quadro, rotulo_busca)
-        ttk.Label(c, textvariable=self.detalhe, wraplength=520, justify="left"
-                  ).grid(row=4, column=0, sticky="w", pady=(2, 4))
+        self._partes_da_lista = (barra, quadro, opcoes)
+
+        ttk.Label(c, textvariable=self.resumo, wraplength=560, justify="left"
+                  ).grid(row=4, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(c, textvariable=self.detalhe, wraplength=560, justify="left",
+                  foreground="#555").grid(row=5, column=0, sticky="w", pady=(2, 6))
 
         ferramentas = ttk.Frame(c)
-        ferramentas.grid(row=5, column=0, sticky="we")
+        ferramentas.grid(row=6, column=0, sticky="we")
         ttk.Button(ferramentas, text="Ver tudo", width=9, command=self.ver_tudo
                    ).grid(row=0, column=0)
         self.botao_ampliar = ttk.Button(ferramentas, text="Ampliar desenho",
                                         command=self.alternar_ampliado)
         self.botao_ampliar.grid(row=0, column=1, padx=(6, 0))
         ttk.Label(ferramentas, foreground="#555",
-                  text="  Roda: zoom   Arrastar: mover   Clique: escolhe a linha ou o texto   "
+                  text="Roda: zoom  ·  Arrastar: mover  ·  Clique: escolhe a linha ou o texto  ·  "
                        "Ctrl+clique: soma"
-                  ).grid(row=0, column=2, sticky="w")
+                  ).grid(row=0, column=2, sticky="w", padx=(12, 0))
 
         self.tela = tk.Canvas(c, width=LARGURA, height=ALTURA, background=_hex(pr.FUNDO),
                               highlightthickness=1, highlightbackground="#555", takefocus=True)
-        self.tela.grid(row=6, column=0, sticky="nsew", pady=(4, 0))
+        self.tela.grid(row=7, column=0, sticky="nsew", pady=(4, 0))
         self._item = self.tela.create_image(0, 0, anchor="nw")
         self._texto = self.tela.create_text(LARGURA / 2, ALTURA / 2, fill="#9aa0a6", text="",
                                             width=LARGURA - 60, justify="center",
@@ -225,13 +336,12 @@ class PainelCamadas(ttk.LabelFrame):
         self.tela.bind("<Key-0>", lambda e: self.ver_tudo())
 
         aviso = ttk.Frame(c)
-        aviso.grid(row=7, column=0, sticky="we", pady=(6, 0))
+        aviso.grid(row=8, column=0, sticky="we", pady=(6, 0))
         aviso.columnconfigure(0, weight=1)
         self.rotulo_fora = ttk.Label(aviso, textvariable=self.aviso_fora, foreground="#b35c00",
                                      wraplength=520, justify="left")
         self.caixa_fora = ttk.Checkbutton(
             aviso, text="Deixar de fora essas feicoes (recomendado)", variable=self.ignorar_fora)
-        ttk.Label(c, textvariable=self.resumo).grid(row=8, column=0, sticky="w", pady=(4, 0))
 
     def _mostrar(self, qual):
         """Mostra o quadro de estado (vazio, carregando, erro...) ou a lista com o desenho."""
@@ -354,9 +464,9 @@ class PainelCamadas(ttk.LabelFrame):
         """Mostra a lista e o desenho de uma Previa ja lida."""
         self.previa = lida
         self.dxf_pronto = dxf_pronto
-        self._sem_aviso_de_cor = True                # desenho novo: volta a camada inteira
-        self.separar_por_cor.set(False)
-        self._sem_aviso_de_cor = False
+        # as linhas do desenho anterior saem antes (nem as cores abertas nelas valem mais)
+        self.arvore.delete(*self.arvore.get_children())
+        self._iid, self._nome_de, self._abertas = {}, {}, set()
         self._recalcular_itens()
         if not lida.camadas:
             # o GDAL abre ate arquivo quebrado como um DXF vazio
@@ -373,12 +483,13 @@ class PainelCamadas(ttk.LabelFrame):
         self.mostrar_ocultas.set(False)
         self._sem_aviso_de_ocultas = False
         # abre sem nada marcado: o negrito so diz algo se for o que a pessoa escolheu
-        self.marcadas = set()
+        self.cores_marcadas = set()
         self.escolhidas = set()
         self.destaque = None
         self.vista = self._regiao = None
         self.busca.set("")
         self.aviso_busca.set("")
+        self.rotulo_busca.grid_remove()
         self.detalhe.set("")
         self._avisar_feicoes_longe()
         self._estado("pronto")
@@ -405,56 +516,130 @@ class PainelCamadas(ttk.LabelFrame):
 
     # ------------------------------------------------------------------
     # a lista
-    def _foto_da_cor(self, hex_cor):
-        if hex_cor not in self._fotos:
-            foto = tk.PhotoImage(master=self, width=14, height=14)
-            foto.put("#8a8a8a", to=(0, 0, 14, 14))
-            foto.put(hex_cor, to=(1, 1, 13, 13))
-            self._fotos[hex_cor] = foto
-        return self._fotos[hex_cor]
-
-    def _itens(self):
-        """O que a lista mostra: as camadas ou, separando por cor, cada cor de cada camada."""
-        return self.previa.itens(por_cor=self.separar_por_cor.get())
-
+    #
+    # Uma linha por camada; a camada de mais de uma cor abre (a setinha) uma linha por cor.
+    # Por dentro, o que se marca e sempre a cor de uma camada (`cores_marcadas`, chaves
+    # (camada, cor) das previa.Unidade): marcar a camada marca todas as cores dela que a lista
+    # mostra. A caixa de cada linha tem tres estados (ver estado_da_caixa).
     def _recalcular_itens(self):
-        itens = self._itens()
-        self._camadas = {i.chave: i for i in itens}          # chave -> camada ou cor de camada
-        self.indice = {i.chave: n for n, i in enumerate(itens)}
+        p = self.previa
+        self.indice = {u.chave: n for n, u in enumerate(p.unidades)}     # chave -> id no desenho
+        self._unidades_de = collections.defaultdict(list)
+        for u in p.unidades:
+            self._unidades_de[u.camada].append(u)
+        self._camadas = {c.nome: c for c in p.camadas}                   # chave -> item
+        self._camadas.update({u.chave: u for u in p.unidades})
+        self._nome_cor = {}
+        for camada, unidades in self._unidades_de.items():
+            nomes = [dxf_estilo.nome_para_ler(u.cor) for u in unidades]
+            for u, nome in zip(unidades, nomes):
+                # duas cores parecidas na mesma camada: o codigo desempata
+                self._nome_cor[u.chave] = (nome if nomes.count(nome) == 1
+                                           else "%s (%s)" % (nome, u.cor))
 
-    def _eligiveis(self):
-        """O que a lista mostra: as desligadas no AutoCAD so com a caixinha."""
-        return [i for i in self._itens() if self.mostrar_ocultas.get() or not i.oculta]
+    def nome_da_cor(self, chave):
+        """Como a cor (camada, cor) se chama na lista: "azul", "marrom"..."""
+        return self._nome_cor.get(chave) or dxf_estilo.nome_para_ler(chave[1])
+
+    def _mostra(self, item):
+        """A lista mostra as desligadas no AutoCAD so com a caixinha."""
+        return self.mostrar_ocultas.get() or not item.oculta
+
+    def _cores_que_mostra(self, camada):
+        return [u for u in self._unidades_de.get(camada, ()) if self._mostra(u)]
 
     def _exibidas(self):
-        """As chaves que entram no desenho: as eligiveis com pontos, linhas, areas, textos,
-        hachuras ou figuras."""
-        return {i.chave for i in self._eligiveis() if i.tem_desenho}
+        """As chaves (camada, cor) que entram no desenho: as que a lista mostra e tem pontos,
+        linhas, areas, textos, hachuras ou figuras."""
+        return {u.chave for u in self.previa.unidades if self._mostra(u) and u.tem_desenho}
 
-    def _escolhidas_por_item(self):
-        """[linhas, textos] clicados de cada linha da lista (a camada, ou a cor da camada)."""
-        por_cor = self.separar_por_cor.get()
-        contagem = collections.defaultdict(lambda: [0, 0])
+    def _alvo(self, chave):
+        """As cores que a caixa da linha marca: a propria cor ou, na camada, as cores dela
+        que a lista mostra. Vazio se nao ha o que levar."""
+        if isinstance(chave, tuple):
+            return [chave] if self._camadas[chave].tem_desenho else []
+        return [u.chave for u in self._cores_que_mostra(chave) if u.tem_desenho]
+
+    def _dentro(self, gid, chave):
+        g = self.previa.grupos[gid]
+        return (g.camada, g.cor) == chave if isinstance(chave, tuple) else g.camada == chave
+
+    def _escolhidas_em(self, chave, fora_das_marcadas=False):
+        """[linhas, textos] escolhidos no desenho dentro da camada ou da cor (so os que nao
+        estao numa cor marcada, se pedido: esses ja vao com ela)."""
+        n = [0, 0]
         for gid in self.escolhidas:
             g = self.previa.grupos[gid]
-            contagem[(g.camada, g.cor) if por_cor else g.camada][g.texto is not None] += 1
-        return contagem
+            if fora_das_marcadas and (g.camada, g.cor) in self.cores_marcadas:
+                continue
+            if self._dentro(gid, chave):
+                n[g.texto is not None] += 1
+        return n
 
-    def _linha(self, camada):
-        conteudo = camada.resumo()
-        if camada.oculta:
-            conteudo += "  (desligada no AutoCAD)"
-        linhas, textos = self._escolhidas_por_item()[camada.chave]
+    def estado_da_caixa(self, chave):
+        """"marcada": vai inteira; "parcial": vai uma parte (algumas cores, ou linhas e textos
+        escolhidos no desenho); "vazia": nada dela vai."""
+        alvo = self._alvo(chave)
+        marcadas = sum(1 for k in alvo if k in self.cores_marcadas)
+        if alvo and marcadas == len(alvo):
+            return "marcada"
+        if marcadas or any(self._escolhidas_em(chave)):
+            return "parcial"
+        return "vazia"
+
+    @property
+    def marcadas(self):
+        """As camadas inteiras marcadas (todas as cores que a lista mostra)."""
+        if self.previa is None:
+            return set()
+        return {camada for camada in {k[0] for k in self.cores_marcadas}
+                if self._alvo(camada) and all(k in self.cores_marcadas
+                                              for k in self._alvo(camada))}
+
+    def _o_que_vai(self, chave):
+        """A coluna "Na conversao": "tudo", "so azul", "1 linha escolhida", ou nada."""
+        if self.estado_da_caixa(chave) == "marcada":
+            return "tudo"
+        partes = []
+        if not isinstance(chave, tuple):
+            alvo = self._alvo(chave)
+            cores = [k for k in alvo if k in self.cores_marcadas]
+            if len(cores) > 2:
+                partes.append("%d de %d cores" % (len(cores), len(alvo)))
+            elif cores:
+                partes.append("so " + " e ".join(self.nome_da_cor(k) for k in cores))
+        linhas, textos = self._escolhidas_em(chave, fora_das_marcadas=True)
         if linhas or textos:
-            conteudo += "  (%s)" % contar_escolhidas(linhas, textos)
-        return (MARCADA if camada.chave in self.marcadas else DESMARCADA, camada.nome, conteudo)
+            partes.append(contar_escolhidas(linhas, textos))
+        return " + ".join(partes)
 
-    def _etiquetas(self, camada):
+    def _o_que_tem(self, chave):
+        item = self._camadas[chave]
+        texto = item.resumo(" · ") or "vazia"
+        if item.oculta:
+            texto += " · desligada"
+        return texto
+
+    def cores_da_amostra(self, chave):
+        """As cores da amostra ao lado da caixa: as da camada (ate MAX_AMOSTRAS, a mais usada
+        primeiro), ou a da cor."""
+        if isinstance(chave, tuple):
+            return [chave[1]]
+        return [u.cor for u in self._cores_que_mostra(chave)][:MAX_AMOSTRAS]
+
+    def _imagem_da_linha(self, chave):
+        item = self._camadas[chave]
+        return self._fotos.desenhar(self.estado_da_caixa(chave), self.cores_da_amostra(chave),
+                                    ativa=item.tem_desenho,
+                                    lugares=1 if isinstance(chave, tuple) else MAX_AMOSTRAS)
+
+    def _etiquetas(self, chave):
+        item = self._camadas[chave]
         etiquetas = []
-        if camada.oculta or not camada.tem_desenho:
+        if item.oculta or not item.tem_desenho:
             etiquetas.append("apagada")
-        if camada.chave in self.marcadas or any(self._escolhidas_por_item()[camada.chave]):
-            etiquetas.append("marcada")
+        if self.estado_da_caixa(chave) != "vazia":
+            etiquetas.append("marcada")             # vai para a conversao: negrito
         return tuple(etiquetas)
 
     def _contagem_escolhidas(self):
@@ -462,86 +647,95 @@ class PainelCamadas(ttk.LabelFrame):
         textos = sum(1 for g in self.escolhidas if self.previa.grupos[g].texto is not None)
         return len(self.escolhidas) - textos, textos
 
-    def _atualizar_linhas(self):
-        for chave in list(self._iid):
-            self._atualizar_linha(chave)
-
     def _popular(self):
         """Recria as linhas da lista segundo a busca e a caixinha das desligadas."""
         self._silencio = True
+        for iid in self.arvore.get_children():
+            if self.arvore.item(iid, "open"):
+                self._abertas.add(self._nome_de[iid])
+            else:
+                self._abertas.discard(self._nome_de[iid])
         self.arvore.delete(*self.arvore.get_children())
         self._iid, self._nome_de = {}, {}
         texto = self.busca.get().strip().casefold()
-        for camada in self._eligiveis():
-            if texto and texto not in camada.nome.casefold():
+        for n, camada in enumerate(self.previa.camadas):
+            if not self._mostra(camada) or (texto and texto not in camada.nome.casefold()):
                 continue
-            iid = "c%d" % self.indice[camada.chave]
-            self._iid[camada.chave] = iid
-            self._nome_de[iid] = camada.chave
-            foto = self._foto_da_cor(_hex(pr.cor_na_tela(camada.cor)))
-            self.arvore.insert("", "end", iid=iid, image=foto, values=self._linha(camada),
-                               tags=self._etiquetas(camada))
+            iid = self._inserir("", "c%d" % n, camada.nome, camada.nome)
+            cores = self._cores_que_mostra(camada.nome)
+            if len(cores) > 1:
+                for u in cores:
+                    self._inserir(iid, "u%d" % self.indice[u.chave], u.chave,
+                                  self.nome_da_cor(u.chave))
+                self.arvore.item(iid, open=camada.nome in self._abertas)
         if self.destaque in self._iid:
             self.arvore.selection_set(self._iid[self.destaque])
         self._silencio = False
         self._atualizar_resumo()
 
+    def _inserir(self, pai, iid, chave, texto):
+        self._iid[chave] = iid
+        self._nome_de[iid] = chave
+        self.arvore.insert(pai, "end", iid=iid, text=texto,
+                           image=self._imagem_da_linha(chave),
+                           values=(self._o_que_tem(chave), self._o_que_vai(chave)),
+                           tags=self._etiquetas(chave))
+        return iid
+
     def nomes_na_lista(self):
+        """As camadas que a lista mostra, na ordem."""
         return [self._nome_de[i] for i in self.arvore.get_children()]
+
+    def cores_na_lista(self, camada):
+        """As cores (camada, cor) dentro da camada na lista; vazio se ela tem uma cor so."""
+        iid = self._iid.get(camada)
+        return [self._nome_de[i] for i in self.arvore.get_children(iid)] if iid else []
 
     def selecionada(self):
         sel = self.arvore.selection()
         return self._nome_de.get(sel[0]) if sel else None
 
-    def _atualizar_linha(self, nome):
-        iid = self._iid.get(nome)
-        if iid:
-            camada = self._camadas[nome]
-            self.arvore.item(iid, values=self._linha(camada), tags=self._etiquetas(camada))
+    def _atualizar_camada(self, camada):
+        """Refaz a linha da camada e as das cores dela (a caixa, as colunas, o negrito)."""
+        for chave in [camada] + [u.chave for u in self._unidades_de.get(camada, ())]:
+            iid = self._iid.get(chave)
+            if iid:
+                self.arvore.item(iid, image=self._imagem_da_linha(chave),
+                                 values=(self._o_que_tem(chave), self._o_que_vai(chave)),
+                                 tags=self._etiquetas(chave))
+
+    def _atualizar_linhas(self):
+        for camada in self.nomes_na_lista():
+            self._atualizar_camada(camada)
 
     def _atualizar_resumo(self):
-        por_cor = self.separar_por_cor.get()
-        total = len(self._eligiveis())
-        n = len(self.escolhidas)
-        if not self.marcadas and not n:
-            self.resumo.set("Nenhuma %s marcada (de %d). Clique numa linha ou num texto do "
-                            "desenho ou marque na lista."
-                            % ("cor de camada" if por_cor else "camada", total))
+        """O que vai para a conversao, numa frase."""
+        inteiras = self.marcadas
+        partes_de = {k[0] for k in self.cores_marcadas} - inteiras
+        linhas = textos = 0
+        for gid in self.escolhidas:
+            g = self.previa.grupos[gid]
+            if (g.camada, g.cor) not in self.cores_marcadas:
+                if g.texto is None:
+                    linhas += 1
+                else:
+                    textos += 1
+        if not (inteiras or partes_de or linhas or textos):
+            self.resumo.set("Nada escolhido ainda. Marque as camadas na lista ou clique nas "
+                            "linhas e textos do desenho (Ctrl+clique soma).")
             return
         partes = []
-        if self.marcadas:
-            partes.append("%d de %d %s marcadas" % (
-                len(self.marcadas), total, "camadas por cor" if por_cor else "camadas"))
-        if n:
-            partes.append("%s no desenho" % contar_escolhidas(*self._contagem_escolhidas()))
-        self.resumo.set(" e ".join(partes))
-
-    def _ao_alternar_cor(self, *_):
-        """A caixinha de separar por cor mudou: a lista passa a ter uma linha por cor (ou
-        volta a ter uma por camada), e as marcas vao junto."""
-        if self.previa is None or self.estado != "pronto" or self._sem_aviso_de_cor:
-            return
-        unidades = self.previa.unidades
-        desfeitas = 0
-        if self.separar_por_cor.get():
-            novas = {u.chave for u in unidades if u.camada in self.marcadas}
-        else:
-            novas = set()
-            for camada in self.previa.camadas:
-                dela = [u.chave for u in unidades if u.camada == camada.nome]
-                marcadas = [k for k in dela if k in self.marcadas]
-                if marcadas and len(marcadas) == len(dela):
-                    novas.add(camada.nome)
-                elif marcadas:
-                    desfeitas += 1               # so parte das cores: nao e a camada inteira
-        self.marcadas = novas
-        self.destaque = None
-        self._recalcular_itens()
-        self.detalhe.set("" if not desfeitas else
-                         "%d camada(s) com so parte das cores marcada(s): a selecao foi "
-                         "desfeita." % desfeitas)
-        self._popular()
-        self.ver_tudo()
+        if inteiras:
+            partes.append("%d %s" % (len(inteiras), "camada inteira" if len(inteiras) == 1
+                                     else "camadas inteiras"))
+        if partes_de:
+            partes.append("parte das cores de %d %s" % (
+                len(partes_de), "camada" if len(partes_de) == 1 else "camadas"))
+        if linhas or textos:
+            partes.append("%s no desenho" % contar_escolhidas(linhas, textos))
+        frase = partes[0] if len(partes) == 1 else "%s e %s" % (", ".join(partes[:-1]),
+                                                                  partes[-1])
+        self.resumo.set("Vai para a conversao: %s." % frase)
 
     def _ao_alternar_ocultas(self, *_):
         """A caixinha das desligadas mudou: refaz a lista e o desenho."""
@@ -549,30 +743,36 @@ class PainelCamadas(ttk.LabelFrame):
             return
         if not self.mostrar_ocultas.get():
             # o que a lista nao mostra mais nao pode ir para a conversao
-            tirar = [n for n in self.marcadas if self._camadas[n].oculta]
-            for nome in tirar:
-                self.marcadas.discard(nome)
+            tirar = {k for k in self.cores_marcadas if self._camadas[k].oculta}
+            self.cores_marcadas -= tirar
+            avisos = []
             if tirar:
-                self.detalhe.set("%d camada(s) desligada(s) no AutoCAD foram desmarcadas."
-                                 % len(tirar))
+                avisos.append("%d camada(s) desligada(s) no AutoCAD foram desmarcadas."
+                              % len({k[0] for k in tirar}))
             sumidas = {g for g in self.escolhidas if self.previa.grupos[g].oculta}
             self.escolhidas -= sumidas
             if sumidas:
-                self.detalhe.set(" ".join(filter(None, (
-                    self.detalhe.get(),
-                    "%d linha(s) escolhida(s) em camada desligada no AutoCAD foram tiradas."
-                    % len(sumidas)))))
-            if self.destaque and self._camadas[self.destaque].oculta:
+                avisos.append("%d linha(s) escolhida(s) em camada desligada no AutoCAD foram "
+                              "tiradas." % len(sumidas))
+            if avisos:
+                self.detalhe.set(" ".join(avisos))
+            if self.destaque is not None and not self._mostra(self._camadas[self.destaque]):
                 self.destaque = None
         self._popular()
         self.ver_tudo()
 
-    def alternar(self, nome):
-        if nome in self.marcadas:
-            self.marcadas.discard(nome)
+    def alternar(self, chave):
+        """A caixa da linha (camada ou cor): vazia ou pela metade, passa a levar tudo; tudo,
+        passa a nada -- e "nada" tira tambem as linhas e textos escolhidos nela."""
+        alvo = self._alvo(chave)
+        if not alvo:
+            return
+        if self.estado_da_caixa(chave) == "marcada":
+            self.cores_marcadas.difference_update(alvo)
+            self.escolhidas = {g for g in self.escolhidas if not self._dentro(g, chave)}
         else:
-            self.marcadas.add(nome)
-        self._atualizar_linha(nome)
+            self.cores_marcadas.update(alvo)
+        self._atualizar_camada(chave[0] if isinstance(chave, tuple) else chave)
         self._atualizar_resumo()
         self._renderizar()
 
@@ -581,16 +781,15 @@ class PainelCamadas(ttk.LabelFrame):
         textos, hachuras ou figuras. Camada so de textos entra tambem, porque os textos
         (e as hachuras) vao para a conversao pela camada marcada."""
         for nome in self.nomes_na_lista():
-            if self._camadas[nome].tem_desenho:
-                self.marcadas.add(nome)
-            self._atualizar_linha(nome)
+            self.cores_marcadas.update(self._alvo(nome))
+        self._atualizar_linhas()
         self._atualizar_resumo()
         self._renderizar()
 
     def desmarcar_todas(self):
         """Tira as marcas das camadas que a lista mostra e todas as linhas escolhidas."""
-        for nome in self.nomes_na_lista():
-            self.marcadas.discard(nome)
+        na_lista = set(self.nomes_na_lista())
+        self.cores_marcadas = {k for k in self.cores_marcadas if k[0] not in na_lista}
         self.escolhidas = set()
         self._atualizar_linhas()
         self._atualizar_resumo()
@@ -607,53 +806,63 @@ class PainelCamadas(ttk.LabelFrame):
         if texto and not self._iid:
             self.aviso_busca.set("Nenhuma camada tem \"%s\" no nome. Use Limpar para ver "
                                  "todas." % texto)
+            self.rotulo_busca.grid()
         else:
             self.aviso_busca.set("")
+            self.rotulo_busca.grid_remove()
 
-    def selecionar(self, nome):
-        if nome not in self._iid:
+    def selecionar(self, chave):
+        if chave not in self._iid:
             self.busca.set("")
-        if nome in self._iid:
+        if chave in self._iid:
             self._silencio = True
-            self.arvore.selection_set(self._iid[nome])
-            self.arvore.see(self._iid[nome])
+            iid = self._iid[chave]
+            pai = self.arvore.parent(iid)
+            if pai:
+                self.arvore.item(pai, open=True)
+            self.arvore.selection_set(iid)
+            self.arvore.see(iid)
             self._silencio = False
-        self._definir_destaque(nome)
+        self._definir_destaque(chave)
 
     def _ao_selecionar(self, _evento=None):
         if self._silencio:
             return
         self._definir_destaque(self.selecionada())
 
-    def _definir_destaque(self, nome):
-        self.destaque = nome
-        if nome is None:
+    def _definir_destaque(self, chave):
+        self.destaque = chave
+        if chave is None:
             self.detalhe.set("")
         else:
-            camada = self._camadas[nome]
-            texto = "%s: %s." % (camada.nome, camada.resumo() or "vazia")
-            if camada.oculta:
+            item = self._camadas[chave]
+            if isinstance(chave, tuple):
+                nome = "%s, %s" % (chave[0], self.nome_da_cor(chave))
+            else:
+                nome = item.nome
+            texto = "%s: %s." % (nome, item.resumo() or "vazia")
+            if item.oculta:
                 texto += " Desligada no AutoCAD: marque a caixa para levar para a conversao."
-            if (camada.tem_desenho and not camada.tem_geometria
-                    and not camada.contagem.get("texto")):
+            if (item.tem_desenho and not item.tem_geometria
+                    and not item.contagem.get("texto")):
                 texto += (" Aparece no desenho, mas o clique so escolhe pontos, linhas, areas "
                           "e textos (hachuras e figuras vao pela camada marcada).")
             self.detalhe.set(texto)
         self._renderizar()
 
     def _clique_na_lista(self, evento):
-        """Clicar na caixinha marca e desmarca; no resto da linha, so seleciona."""
-        if self.arvore.identify_column(evento.x) != "#1":
-            return None
+        """Clicar na caixa (ou na amostra de cor ao lado) marca e desmarca; na setinha, abre
+        as cores; no resto da linha, so seleciona."""
         iid = self.arvore.identify_row(evento.y)
-        if iid:
-            self.alternar(self._nome_de[iid])
+        if not iid or self.arvore.identify_element(evento.x, evento.y) != "image":
+            return None
+        self.alternar(self._nome_de[iid])
         return "break"
 
     def _espaco(self, _evento):
-        nome = self.selecionada()
-        if nome:
-            self.alternar(nome)
+        chave = self.selecionada()
+        if chave is not None:
+            self.alternar(chave)
         return "break"
 
     # ------------------------------------------------------------------
@@ -704,6 +913,10 @@ class PainelCamadas(ttk.LabelFrame):
                 parte.grid_remove()
             else:
                 parte.grid()                 # volta com as mesmas opcoes de antes
+        if ligar or not self.aviso_busca.get():
+            self.rotulo_busca.grid_remove()
+        else:
+            self.rotulo_busca.grid()
         self.botao_ampliar.configure(text="Voltar ao normal (Esc)" if ligar else "Ampliar desenho")
         topo = self.winfo_toplevel()
         if ligar:
@@ -728,11 +941,11 @@ class PainelCamadas(ttk.LabelFrame):
         if self.previa is None or self.estado != "pronto":
             return
         largura, altura = self.tamanho()
+        # cada cor de cada camada tem o seu id no desenho (ver _recalcular_itens)
         desenhos = pr.montar_desenhos(self.previa, self._exibidas(), self.indice,
-                                      marcadas=self.marcadas,
+                                      marcadas=self.cores_marcadas,
                                       com_ocultas=self.mostrar_ocultas.get(),
-                                      por_cor=self.separar_por_cor.get(),
-                                      linhas_marcadas=self.escolhidas)
+                                      por_cor=True, linhas_marcadas=self.escolhidas)
         if not desenhos or self.vista is None:
             self.ids = self.imagem = None
             self.tela.itemconfigure(self._item, image="")
@@ -746,13 +959,21 @@ class PainelCamadas(ttk.LabelFrame):
             self.tela.coords(self._texto, largura / 2, altura / 2)
             return
         self.tela.itemconfigure(self._texto, text="")
-        img, self.ids = pr.desenhar(
-            desenhos, self.vista, largura, altura,
-            destaque=self.indice[self.destaque] if self.destaque else None)
+        img, self.ids = pr.desenhar(desenhos, self.vista, largura, altura,
+                                    destaque=self._ids_do_destaque())
         self.imagem = img
         self._foto = tk.PhotoImage(master=self.tela, data=pr.para_ppm(img))
         self.tela.itemconfigure(self._item, image=self._foto)
         self.tela.coords(self._item, 0, 0)
+
+    def _ids_do_destaque(self):
+        """Os ids, no desenho, da linha escolhida na lista: todas as cores da camada, ou a
+        cor."""
+        if self.destaque is None:
+            return None
+        if isinstance(self.destaque, tuple):
+            return {self.indice[self.destaque]}
+        return {self.indice[u.chave] for u in self._unidades_de.get(self.destaque, ())}
 
     def _agendar_render(self):
         if self._depois_render:
@@ -821,30 +1042,29 @@ class PainelCamadas(ttk.LabelFrame):
         if self.ids is None or self.vista is None:
             return None
         dx, dy = self.vista.para_desenho(x, y)
-        por_cor = self.separar_por_cor.get()
-        camadas = {k[0] if por_cor else k for k in self._exibidas()}
+        camadas = {k[0] for k in self._exibidas()}
         texto = self.previa.achar_texto(dx, dy, FOLGA_DO_TEXTO / self.vista.escala, camadas)
         if texto is not None:
             return texto
         indice = pr.camada_em(self.ids, x, y)
         if indice is None:
             return None
-        item = self._itens()[indice]
-        camada, cor = (item.camada, item.cor) if por_cor else (item.nome, None)
-        return self.previa.achar_grupo(dx, dy, RAIO_DO_CLIQUE / self.vista.escala, camada, cor,
-                                       com_ocultas=self.mostrar_ocultas.get())
+        u = self.previa.unidades[indice]
+        return self.previa.achar_grupo(dx, dy, RAIO_DO_CLIQUE / self.vista.escala, u.camada,
+                                       u.cor, com_ocultas=self.mostrar_ocultas.get())
 
     def _texto_da_linha(self, gid):
         g = self.previa.grupos[gid]
+        cor = self.nome_da_cor((g.camada, g.cor))
         if g.texto is not None:
             escrito = " ".join(g.texto.split())
-            if len(escrito) > 60:
-                escrito = escrito[:57] + "..."
-            return "Texto escolhido: \"%s\", camada %s, cor %s." % (
-                escrito, g.camada, dxf_estilo.nome_da_cor(g.cor))
-        pecas = "1 peca" if g.pecas == 1 else "%d pecas ligadas pelas pontas" % g.pecas
-        return "Linha escolhida: camada %s, cor %s, %s." % (
-            g.camada, dxf_estilo.nome_da_cor(g.cor), pecas)
+            if len(escrito) > 70:
+                escrito = escrito[:67] + "..."
+            return "Texto escolhido na camada %s (%s): \"%s\"" % (g.camada, cor, escrito)
+        if g.pecas == 1:
+            return "Linha escolhida na camada %s (%s)." % (g.camada, cor)
+        return "Linha escolhida na camada %s (%s), feita de %d pecas ligadas pelas pontas." % (
+            g.camada, cor, g.pecas)
 
     def clicar(self, x, y, ctrl=False):
         """Clique no desenho: escolhe a linha que esta ali (as pecas que se encostam pelas
@@ -861,7 +1081,7 @@ class PainelCamadas(ttk.LabelFrame):
         if ctrl:
             self.escolhidas ^= {gid}
         else:
-            self.marcadas = set()
+            self.cores_marcadas = set()
             self.escolhidas = {gid}
         self._silencio = True
         self.arvore.selection_remove(*self.arvore.selection())
@@ -878,26 +1098,33 @@ class PainelCamadas(ttk.LabelFrame):
     def selecao(self):
         """O que a conversao precisa saber: camadas inteiras, linhas e textos escolhidos um a
         um (`feicoes`, ids do GDAL; `linhas` e `textos` dizem quantos de cada), DXF pronto e a
-        caixa a descartar."""
+        caixa a descartar.
+
+        `cores` ({camada: {cores}}) so tem as camadas pela metade (algumas cores marcadas): a
+        camada inteira vai sem filtro, ou None se nenhuma esta pela metade. `separar_por_cor`
+        sao as camadas de mais de uma cor que a opcao "uma camada do QGIS para cada cor"
+        divide na saida."""
         caixa = None
-        if self.previa is not None and self.previa.fora_total and self.ignorar_fora.get():
+        if self.previa is None:
+            return {"camadas": set(), "cores": None, "separar_por_cor": set(), "feicoes": set(),
+                    "linhas": 0, "textos": 0, "dxf": self.dxf_pronto, "caixa": None}
+        if self.previa.fora_total and self.ignorar_fora.get():
             caixa = self.previa.caixa_area
-        cores, dividir = None, set()
         feicoes = {f for g in self.escolhidas for f in self.previa.grupos[g].fids}
-        linhas, textos = self._contagem_escolhidas() if self.previa is not None else (0, 0)
-        if self.separar_por_cor.get():
-            camadas = {camada for camada, _cor in self.marcadas}
-            cores = {}
-            for camada, cor in self.marcadas:
+        linhas, textos = self._contagem_escolhidas()
+        camadas = {k[0] for k in self.cores_marcadas}
+        inteiras = self.marcadas
+        cores = {}
+        for camada, cor in self.cores_marcadas:
+            if camada not in inteiras:
                 cores.setdefault(camada, set()).add(cor)
+        dividir = set()
+        if self.separar_por_cor.get():
             # so sai dividida a camada que tem mais de uma cor no desenho; as linhas escolhidas
-            # saem com o nome da cor, como o resto da lista
+            # saem com o nome da cor, como o resto
             tocadas = camadas | {self.previa.grupos[g].camada for g in self.escolhidas}
-            dividir = {c for c in tocadas
-                       if sum(1 for u in self.previa.unidades if u.camada == c) > 1}
-        else:
-            camadas = set(self.marcadas)
-        return {"camadas": camadas, "cores": cores, "separar_por_cor": dividir,
+            dividir = {c for c in tocadas if len(self._unidades_de.get(c, ())) > 1}
+        return {"camadas": camadas, "cores": cores or None, "separar_por_cor": dividir,
                 "feicoes": feicoes, "linhas": linhas, "textos": textos,
                 "dxf": self.dxf_pronto, "caixa": caixa}
 

@@ -278,15 +278,22 @@ def desenhar(desenhos, vista, largura, altura, destaque=None, fundo=FUNDO):
 
     Primeiro as camadas comuns, na ordem da lista (a do AutoCAD: o que vem depois cobre o
     que veio antes), depois as marcadas (em negrito, por cima) e por fim a escolhida na
-    lista: um contorno azul e, por dentro, a cor dela."""
+    lista: um contorno azul e, por dentro, a cor dela. `destaque` e o id da escolhida, ou
+    os ids (uma camada escolhida e todas as cores dela)."""
     img = np.empty((altura, largura, 3), dtype=np.uint8)
     img[:] = fundo
     ids = np.zeros((altura, largura), dtype=np.uint16)
+    if destaque is None:
+        destaques = set()
+    elif isinstance(destaque, (int, np.integer)):
+        destaques = {int(destaque)}
+    else:
+        destaques = set(destaque)
     poucos = _pontos_na_tela(desenhos, vista, largura, altura) <= PONTOS_PARA_QUADRADO
     muitas = _linhas_marcadas_na_tela(desenhos, vista, largura, altura) > VERTICES_PARA_NEGRITO_LARGO
-    comuns = [d for d in desenhos if d.id != destaque and not d.grosso]
-    marcadas = [d for d in desenhos if d.id != destaque and d.grosso]
-    escolhidos = [d for d in desenhos if d.id == destaque]
+    comuns = [d for d in desenhos if d.id not in destaques and not d.grosso]
+    marcadas = [d for d in desenhos if d.id not in destaques and d.grosso]
+    escolhidos = [d for d in desenhos if d.id in destaques]
     for d in comuns:
         _desenhar_um(img, ids, d, vista, d.rgb, "fina", poucos, muitas)
     for d in marcadas:

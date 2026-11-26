@@ -170,7 +170,7 @@ def test_clicar_no_texto_escolhe_o_texto(painel):
     assert "POCO" in painel.detalhe.get() and "Texto" in painel.detalhe.get(), \
         painel.detalhe.get()
     assert "1 texto escolhido" in painel.resumo.get(), painel.resumo.get()
-    assert "1 texto escolhido" in painel.arvore.item(painel._iid["TEXTOS"], "values")[2]
+    assert painel.arvore.set(painel._iid["TEXTOS"], "vai") == "1 texto escolhido"
     assert "marcada" in painel.arvore.item(painel._iid["TEXTOS"], "tags"), "negrito na lista"
 
 

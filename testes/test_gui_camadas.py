@@ -17,6 +17,7 @@ import tkinter as tk
 from types import SimpleNamespace
 
 import ezdxf
+import numpy as np
 import pytest
 
 import gerar_camadas
@@ -63,8 +64,15 @@ def pixel_de(painel, x, y):
     return int(round(px)), int(round(py))
 
 
-def pixels_da_camada(painel, nome):
-    return int((painel.ids == painel.indice[nome] + 1).sum())
+def ids_de(painel, chave):
+    """Os ids no mapa de pixels de uma camada (todas as cores dela) ou de uma cor."""
+    if isinstance(chave, tuple):
+        return {painel.indice[chave] + 1}
+    return {n + 1 for k, n in painel.indice.items() if k[0] == chave}
+
+
+def pixels_da_camada(painel, chave):
+    return int(np.isin(painel.ids, list(ids_de(painel, chave))).sum())
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +85,7 @@ def test_lista_so_as_camadas_que_o_autocad_mostra_e_abre_sem_nada_marcado(painel
     assert painel.marcadas == set(), \
         "abre sem nada marcado: o negrito so diz algo se for o que a pessoa escolheu -> %s" % \
         sorted(painel.marcadas)
-    assert "Nenhuma camada marcada" in painel.resumo.get(), \
+    assert "Nada escolhido" in painel.resumo.get() and "clique" in painel.resumo.get(), \
         "e o resumo diz o que fazer -> %r" % painel.resumo.get()
 
 
@@ -103,15 +111,17 @@ def test_desligar_a_caixinha_desmarca_as_escondidas_que_estavam_marcadas(painel)
 def test_o_desenho_abre_todo_fino_porque_nada_esta_marcado(painel):
     assert pixels_da_camada(painel, "Visivel") > 0
     painel.alternar("Visivel")
-    assert pixels_da_camada(painel, "Visivel") > 0 and "1 de" in painel.resumo.get()
+    assert pixels_da_camada(painel, "Visivel") > 0
+    assert "1 camada inteira" in painel.resumo.get(), painel.resumo.get()
 
 
 def test_alternar_marca_e_desmarca_e_o_resumo_acompanha(painel):
     antes = len(painel.marcadas)
     painel.alternar("Carimbo")
     assert "Carimbo" in painel.marcadas and len(painel.marcadas) == antes + 1
-    assert "%d de" % (antes + 1) in painel.resumo.get(), \
-        "o resumo diz quantas estao marcadas -> %r" % painel.resumo.get()
+    assert painel.estado_da_caixa("Carimbo") == "marcada"
+    assert "Vai para a conversao: 1 camada inteira" in painel.resumo.get(), \
+        "o resumo diz o que vai para a conversao -> %r" % painel.resumo.get()
     painel.alternar("Carimbo")
     assert "Carimbo" not in painel.marcadas
 
@@ -290,9 +300,8 @@ def test_ctrl_soma_e_tira_linhas_sem_mexer_nas_camadas_marcadas(painel):
 def test_a_lista_mostra_quantas_linhas_de_cada_camada_foram_escolhidas(painel):
     painel.ver_tudo()
     painel.clicar(*borda_de_clique(painel))
-    valores = painel.arvore.item(painel._iid["Visivel"], "values")
-    assert valores[0] == "☐", "a camada em si nao esta marcada"
-    assert "1 linha escolhida" in valores[2], valores
+    assert painel.estado_da_caixa("Visivel") == "parcial", "a camada inteira nao, so parte"
+    assert coluna(painel, "Visivel") == "1 linha escolhida", coluna(painel, "Visivel")
     assert "marcada" in painel.arvore.item(painel._iid["Visivel"], "tags"), "em negrito na lista"
     assert "marcada" not in painel.arvore.item(painel._iid["Pontos"], "tags")
     assert "1 linha escolhida" in painel.resumo.get(), painel.resumo.get()
@@ -306,7 +315,8 @@ def test_o_resumo_junta_as_camadas_marcadas_e_as_linhas_escolhidas(painel):
     painel.alternar("Carimbo")
     painel.clicar(*borda_de_clique(painel), ctrl=True)
     resumo = painel.resumo.get()
-    assert "1 de" in resumo and "1 linha escolhida" in resumo, resumo
+    assert resumo == "Vai para a conversao: 1 camada inteira e 1 linha escolhida no desenho.", \
+        resumo
 
 
 def test_clicar_no_vazio_nao_mexe_nas_escolhas_nem_nas_marcas(painel):
@@ -344,8 +354,8 @@ def test_desmarcar_todas_tambem_tira_as_linhas_escolhidas(painel):
     painel.clicar(*borda_de_clique(painel))
     painel.desmarcar_todas()
     assert painel.escolhidas == set() and painel.marcadas == set()
-    assert "Nenhuma" in painel.resumo.get(), painel.resumo.get()
-    assert "linha escolhida" not in painel.arvore.item(painel._iid["Visivel"], "values")[2]
+    assert "Nada escolhido" in painel.resumo.get(), painel.resumo.get()
+    assert coluna(painel, "Visivel") == "" and painel.estado_da_caixa("Visivel") == "vazia"
 
 
 def test_desenho_novo_comeca_sem_linhas_escolhidas(painel, desenho):
@@ -424,7 +434,7 @@ def test_escolher_na_lista_mostra_o_que_a_camada_desligada_e(painel):
 
 
 # ---------------------------------------------------------------------------
-# separar cada camada por cor
+# as cores de cada camada ficam dentro dela
 HEX_VERMELHO, HEX_AZUL, HEX_VERDE = "#ff0000", "#0000ff", "#00ff00"
 
 
@@ -449,73 +459,151 @@ def painel_por_cor(raiz, tmp_path):
     p.destroy()
 
 
+def coluna(painel, chave, nome="vai"):
+    """O que a lista mostra numa coluna ("conteudo": o que tem; "vai": o que vai para a
+    conversao) da linha da camada ou da cor."""
+    return painel.arvore.set(painel._iid[chave], nome)
+
+
+def test_a_lista_e_das_camadas_e_as_cores_ficam_dentro_delas(painel_por_cor):
+    p = painel_por_cor
+    assert p.nomes_na_lista() == ["A", "B"]
+    assert p.cores_na_lista("A") == [("A", HEX_VERMELHO), ("A", HEX_AZUL)], \
+        "a cor com mais linhas primeiro -> %s" % p.cores_na_lista("A")
+    assert p.cores_na_lista("B") == [], "camada de uma cor so nao tem o que abrir"
+    assert p.arvore.item(p._iid[("A", HEX_AZUL)], "text") == "azul", "a cor pelo nome"
+    assert not p.arvore.item(p._iid["A"], "open"), "fechada, ate a pessoa abrir"
+
+
+def test_a_amostra_da_camada_mostra_as_cores_que_ela_tem(painel_por_cor):
+    p = painel_por_cor
+    assert p.cores_da_amostra("A") == [HEX_VERMELHO, HEX_AZUL]
+    assert p.cores_da_amostra(("A", HEX_AZUL)) == [HEX_AZUL]
+    assert p.cores_da_amostra("B") == [HEX_VERDE]
+
+
 def test_a_opcao_de_separar_por_cor_comeca_desligada(painel_por_cor):
     assert painel_por_cor.separar_por_cor.get() is False
-    assert painel_por_cor.nomes_na_lista() == ["A", "B"]
 
 
-def test_separar_por_cor_troca_a_lista_para_uma_linha_por_cor(painel_por_cor):
+def test_marcar_uma_cor_deixa_a_camada_pela_metade(painel_por_cor):
     p = painel_por_cor
-    p.separar_por_cor.set(True)
-    assert p.nomes_na_lista() == [("A", HEX_VERMELHO), ("A", HEX_AZUL), ("B", HEX_VERDE)],         "uma linha por camada e cor -> %s" % p.nomes_na_lista()
-    assert p.arvore.item(p._iid[("A", HEX_VERMELHO)], "values")[1] == "A · vermelho"
-    assert p.arvore.item(p._iid[("B", HEX_VERDE)], "values")[1] == "B"
-    assert "cor" in p.resumo.get().lower(), p.resumo.get()
-    p.separar_por_cor.set(False)
-    assert p.nomes_na_lista() == ["A", "B"], "e desligando, volta"
-
-
-def test_a_troca_de_modo_leva_as_marcas_junto(painel_por_cor):
-    p = painel_por_cor
-    p.alternar("A")
-    p.separar_por_cor.set(True)
-    assert p.marcadas == {("A", HEX_VERMELHO), ("A", HEX_AZUL)},         "camada marcada = todas as cores dela marcadas -> %s" % p.marcadas
     p.alternar(("A", HEX_AZUL))
-    p.separar_por_cor.set(False)
-    assert p.marcadas == set(), "so uma cor marcada nao e a camada inteira: desfaz"
-    assert "desfeit" in p.detalhe.get().lower(),         "e a pessoa e avisada -> %r" % p.detalhe.get()
+    assert p.estado_da_caixa(("A", HEX_AZUL)) == "marcada"
+    assert p.estado_da_caixa("A") == "parcial"
+    assert p.marcadas == set(), "a camada inteira, nao -> %s" % p.marcadas
+    assert coluna(p, "A") == "so azul" and coluna(p, ("A", HEX_AZUL)) == "tudo"
+    p.alternar(("A", HEX_VERMELHO))
+    assert p.estado_da_caixa("A") == "marcada" and p.marcadas == {"A"}
+    assert coluna(p, "A") == "tudo"
 
 
-def test_clicar_no_desenho_escolhe_so_a_linha_mesmo_separando_por_cor(painel_por_cor):
+def test_a_caixa_da_camada_pela_metade_marca_tudo_e_depois_tira_tudo(painel_por_cor):
+    p = painel_por_cor
+    p.alternar(("A", HEX_AZUL))
+    p.alternar("A")
+    assert p.cores_marcadas == {("A", HEX_VERMELHO), ("A", HEX_AZUL)}, p.cores_marcadas
+    p.alternar("A")
+    assert p.cores_marcadas == set() and p.estado_da_caixa("A") == "vazia"
+    assert coluna(p, "A") == ""
+
+
+def test_linha_clicada_deixa_a_camada_e_a_cor_pela_metade(painel_por_cor):
+    p = painel_por_cor
+    p.ver_tudo()
+    p.clicar(*pixel_de(p, 50, 30))                    # a linha azul de A
+    assert p.estado_da_caixa("A") == "parcial"
+    assert p.estado_da_caixa(("A", HEX_AZUL)) == "parcial"
+    assert p.estado_da_caixa(("A", HEX_VERMELHO)) == "vazia"
+    assert coluna(p, "A") == "1 linha escolhida", coluna(p, "A")
+    assert coluna(p, ("A", HEX_AZUL)) == "1 linha escolhida"
+    assert "marcada" in p.arvore.item(p._iid["A"], "tags"), "em negrito: vai para a conversao"
+
+
+def test_desmarcar_a_camada_tambem_tira_as_linhas_clicadas_nela(painel_por_cor):
+    p = painel_por_cor
+    p.ver_tudo()
+    p.clicar(*pixel_de(p, 50, 30))
+    p.alternar("A")                                   # pela metade -> inteira
+    assert p.estado_da_caixa("A") == "marcada"
+    p.alternar("A")                                   # inteira -> nada dela
+    assert p.escolhidas == set() and p.estado_da_caixa("A") == "vazia"
+
+
+def test_clicar_no_desenho_escolhe_so_a_linha_e_nao_a_cor(painel_por_cor):
     # a camada A tem 3 linhas vermelhas e 1 azul: clicar em uma vermelha nao leva as tres
     p = painel_por_cor
-    p.separar_por_cor.set(True)
     p.ver_tudo()
     p.clicar(*pixel_de(p, 50, 0))
-    assert p.marcadas == set(), "nem a cor, nem a camada: so a linha -> %s" % p.marcadas
+    assert p.cores_marcadas == set(), "nem a cor, nem a camada: so a linha"
     assert escolhidas_de(p) == [("A", 1)]
     assert p.previa.grupos[next(iter(p.escolhidas))].cor == HEX_VERMELHO
     p.clicar(*pixel_de(p, 50, 30), ctrl=True)
     cores = sorted(p.previa.grupos[g].cor for g in p.escolhidas)
     assert cores == [HEX_AZUL, HEX_VERMELHO], "Ctrl soma a azul -> %s" % cores
-    assert "1 linha escolhida" in p.arvore.item(p._iid[("A", HEX_VERMELHO)], "values")[2]
-    assert "1 linha escolhida" in p.arvore.item(p._iid[("A", HEX_AZUL)], "values")[2]
+    assert coluna(p, "A") == "2 linhas escolhidas"
+    assert coluna(p, ("A", HEX_VERMELHO)) == "1 linha escolhida"
 
 
-def test_a_selecao_por_cor_com_linhas_escolhidas_divide_a_camada_delas(painel_por_cor):
+def test_a_opcao_de_separar_por_cor_nao_mexe_na_lista_nem_no_que_foi_escolhido(painel_por_cor):
+    """Antes ela trocava a lista inteira: o zoom voltava ao desenho todo, o texto escolhido
+    sumia do rodape e, com a camada marcada, o texto de outra cor ficava fino."""
+    p = painel_por_cor
+    p.ver_tudo()
+    p.alternar(("A", HEX_AZUL))
+    p.clicar(*pixel_de(p, 50, 60), ctrl=True)         # a linha de B
+    p._roda(evento(delta=120, x=100, y=100))
+
+    def foto():
+        return (p.nomes_na_lista(), p.cores_na_lista("A"), set(p.cores_marcadas),
+                set(p.escolhidas), p.detalhe.get(), p.resumo.get(),
+                (p.vista.escala, p.vista.x0, p.vista.y_topo))
+    antes = foto()
+    p.separar_por_cor.set(True)
+    assert foto() == antes
+    p.separar_por_cor.set(False)
+    assert foto() == antes
+
+
+def test_a_selecao_filtra_a_cor_so_da_camada_pela_metade(painel_por_cor):
+    p = painel_por_cor
+    p.alternar(("A", HEX_AZUL))
+    p.alternar("B")
+    sel = p.selecao()
+    assert sel["camadas"] == {"A", "B"}
+    assert sel["cores"] == {"A": {HEX_AZUL}}, "B vai inteira, sem filtro -> %s" % sel["cores"]
+    assert sel["separar_por_cor"] == set(), "a opcao de separar esta desligada"
+
+
+def test_camada_inteira_nao_filtra_cor(painel_por_cor):
+    p = painel_por_cor
+    p.alternar("A")
+    sel = p.selecao()
+    assert sel["camadas"] == {"A"} and sel["cores"] is None and sel["separar_por_cor"] == set()
+
+
+def test_com_a_opcao_a_camada_de_varias_cores_sai_uma_camada_por_cor(painel_por_cor):
+    p = painel_por_cor
+    p.alternar("A")
+    p.alternar("B")
+    p.separar_por_cor.set(True)
+    sel = p.selecao()
+    assert sel["cores"] is None
+    assert sel["separar_por_cor"] == {"A"}, \
+        "so A tem mais de uma cor: so ela sai dividida -> %s" % sel["separar_por_cor"]
+
+
+def test_a_selecao_com_linhas_escolhidas_e_a_opcao_divide_a_camada_delas(painel_por_cor):
     p = painel_por_cor
     p.separar_por_cor.set(True)
     p.ver_tudo()
     p.clicar(*pixel_de(p, 50, 0))
     sel = p.selecao()
-    assert sel["camadas"] == set() and sel["cores"] == {}
+    assert sel["camadas"] == set() and sel["cores"] is None
     assert sel["separar_por_cor"] == {"A"}, \
         "A tem duas cores: as linhas escolhidas dela saem separadas por cor -> %s" % \
         sel["separar_por_cor"]
     assert len(sel["feicoes"]) == 1
-
-
-def test_trocar_o_modo_de_cor_mantem_as_linhas_escolhidas(painel_por_cor):
-    p = painel_por_cor
-    p.ver_tudo()
-    p.clicar(*pixel_de(p, 50, 0))
-    escolhidas = set(p.escolhidas)
-    p.separar_por_cor.set(True)
-    assert p.escolhidas == escolhidas
-    assert "1 linha escolhida" in p.arvore.item(p._iid[("A", HEX_VERMELHO)], "values")[2]
-    p.separar_por_cor.set(False)
-    assert p.escolhidas == escolhidas
-    assert "1 linha escolhida" in p.arvore.item(p._iid["A"], "values")[2]
 
 
 def test_so_a_linha_escolhida_fica_em_negrito_no_desenho(painel_por_cor):
@@ -526,13 +614,12 @@ def test_so_a_linha_escolhida_fica_em_negrito_no_desenho(painel_por_cor):
     x, y = pixel_de(p, 50, 0)
     x30, y30 = pixel_de(p, 50, 30)
     assert pixels_da_camada(p, "A") > antes, "a linha escolhida engrossou"
-    assert p.ids[y + 1, x] == p.indice["A"] + 1, "a escolhida: 3 pixels de espessura"
+    assert p.ids[y + 1, x] in ids_de(p, "A"), "a escolhida: 3 pixels de espessura"
     assert p.ids[y30 + 1, x30] == 0, "as outras da mesma camada continuam finas"
 
 
 def test_so_a_cor_marcada_fica_em_negrito(painel_por_cor):
     p = painel_por_cor
-    p.separar_por_cor.set(True)
     fina = pixels_da_camada(p, ("A", HEX_AZUL))
     p.alternar(("A", HEX_AZUL))
     assert pixels_da_camada(p, ("A", HEX_AZUL)) > 2 * fina, "a azul engrossa"
@@ -540,30 +627,59 @@ def test_so_a_cor_marcada_fica_em_negrito(painel_por_cor):
     assert pixels_da_camada(p, ("A", HEX_AZUL)) == fina
 
 
-def test_a_selecao_por_cor_diz_quais_cores_de_quais_camadas(painel_por_cor):
+def _tem_contorno(painel, x, y):
+    px, py = pixel_de(painel, x, y)
+    janela = painel.imagem[max(py - 4, 0):py + 5, max(px - 4, 0):px + 5].reshape(-1, 3)
+    return any(tuple(int(v) for v in c) == pr.CONTORNO for c in janela)
+
+
+def test_escolher_a_camada_na_lista_contorna_todas_as_cores_dela(painel_por_cor):
     p = painel_por_cor
-    p.separar_por_cor.set(True)
-    p.alternar(("A", HEX_VERMELHO))
-    p.alternar(("B", HEX_VERDE))
-    sel = p.selecao()
-    assert sel["camadas"] == {"A", "B"}
-    assert sel["cores"] == {"A": {HEX_VERMELHO}, "B": {HEX_VERDE}}, sel["cores"]
-    assert sel["separar_por_cor"] == {"A"},         "so A tem mais de uma cor no desenho: so ela sai dividida -> %s" % sel["separar_por_cor"]
+    p.ver_tudo()
+    p.selecionar("A")
+    assert _tem_contorno(p, 50, 0) and _tem_contorno(p, 50, 30), "a vermelha e a azul"
+    assert not _tem_contorno(p, 50, 60), "B nao"
+    p.selecionar(("A", HEX_AZUL))
+    assert _tem_contorno(p, 50, 30) and not _tem_contorno(p, 50, 0), "so a cor escolhida"
 
 
-def test_sem_separar_por_cor_a_selecao_nao_filtra_cor(painel_por_cor):
+def converter_a_selecao(painel, tmp_path, nome):
+    """Converte o DXF do painel_por_cor com o que o painel manda (como a aba faz) e devolve
+    {camada de saida: [cor_cad de cada feicao]}."""
+    import fiona
+    from conversor import convert
+    sel = painel.selecao()
+    saida = str(tmp_path / nome)
+    convert.cad_para_qgis(str(tmp_path / "pc.dxf"), saida, 31982, gerar_projeto=False,
+                          registrar=lambda *_: None, camadas=sel["camadas"], cores=sel["cores"],
+                          separar_por_cor=sel["separar_por_cor"])
+    feicoes = {}
+    for camada in convert.listar_camadas(saida):
+        with fiona.open(saida, layer=camada) as f:
+            feicoes[camada] = sorted(ft["properties"]["cor_cad"] for ft in f)
+    return feicoes
+
+
+def test_a_conversao_leva_so_a_cor_marcada_mesmo_sem_a_opcao(painel_por_cor, tmp_path):
+    p = painel_por_cor
+    p.alternar("B")
+    p.alternar(("A", HEX_AZUL))
+    assert converter_a_selecao(p, tmp_path, "so_azul.gpkg") == {
+        "A_LineString": [HEX_AZUL], "B_LineString": ["#00ff00"]}, \
+        "de A so a linha azul; B inteira, sem filtro"
+
+
+def test_a_conversao_com_a_opcao_divide_so_a_camada_de_varias_cores(painel_por_cor, tmp_path):
     p = painel_por_cor
     p.alternar("A")
-    sel = p.selecao()
-    assert sel["camadas"] == {"A"} and sel["cores"] is None and sel["separar_por_cor"] == set()
-
-
-def test_desenho_novo_volta_a_camada_inteira(painel_por_cor, desenho):
-    p = painel_por_cor
+    p.alternar("B")
     p.separar_por_cor.set(True)
-    p.definir_previa(desenho[1], dxf_pronto=desenho[0])
-    assert p.separar_por_cor.get() is False
-    assert "Pontos" in p.nomes_na_lista()
+    assert converter_a_selecao(p, tmp_path, "dividido.gpkg") == {
+        "A_vermelho_LineString": [HEX_VERMELHO] * 3, "A_azul_LineString": [HEX_AZUL],
+        "B_LineString": ["#00ff00"]}
+    p.alternar(("A", HEX_VERMELHO))                   # tira o vermelho: A fica so azul
+    assert converter_a_selecao(p, tmp_path, "dividido_azul.gpkg") == {
+        "A_azul_LineString": [HEX_AZUL], "B_LineString": ["#00ff00"]}
 
 
 # ---------------------------------------------------------------------------
