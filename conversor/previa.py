@@ -63,14 +63,15 @@ class _Resumo:
         return self.tem_geometria or any(self.contagem.get(t)
                                          for t in ("texto", "hachura", "imagem"))
 
-    def resumo(self):
-        """"1860 pontos, 483 linhas": o que tem dentro."""
+    def resumo(self, separador=", "):
+        """"1860 pontos, 483 linhas": o que tem dentro, como se ve (ver `contagem_vista`)."""
+        contagem = getattr(self, "contagem_vista", None) or self.contagem
         partes = []
         for tipo in ORDEM:
-            n = self.contagem.get(tipo, 0)
+            n = contagem.get(tipo, 0)
             if n:
                 partes.append("%d %s" % (n, ROTULOS[tipo][0 if n == 1 else 1]))
-        return ", ".join(partes)
+        return separador.join(partes)
 
 
 @dataclass
@@ -83,6 +84,10 @@ class Camada(_Resumo):
     bbox: tuple = None             # (xmin, ymin, xmax, ymax) de tudo o que se desenha
     n_ocultas: int = 0             # feicoes que o AutoCAD nao mostra (camada desligada...)
     bbox_visivel: tuple = None     # o mesmo, so do que o AutoCAD mostra
+    cores: tuple = ()              # as cores dela (as Unidade), a com mais feicoes primeiro
+    # a contagem como a pessoa ve e o clique escolhe: pontos, linhas e areas contam por
+    # Grupo (as pecas ligadas pelas pontas sao uma linha so); o resto, por feicao
+    contagem_vista: dict = None
 
     @property
     def chave(self):
@@ -100,6 +105,7 @@ class Unidade(_Resumo):
     bbox: tuple = None
     n_ocultas: int = 0
     bbox_visivel: tuple = None
+    contagem_vista: dict = None    # ver Camada
 
     @property
     def nome(self):
@@ -917,32 +923,49 @@ def _montar(coleta, hachuras=(), textos=(), imagens=(), textos_gdal=()):
         _juntar(bbox, i.camada, i.caixa)
         _juntar(bbox_visivel, i.camada, i.caixa)
 
+    # as linhas como se veem: cada Grupo conta uma vez (ver Camada.contagem_vista)
+    vistos = collections.defaultdict(set)          # (camada, cor, tipo) -> ids de grupo
+    for nome, lista in formas.items():
+        for f in lista:
+            vistos[(nome, f.cor, f.tipo)].update(np.unique(f.grupos).tolist())
+
+    def contagem_vista(contagem, nome, cores):
+        vista = dict(contagem)
+        for tipo in GEOMETRIA:
+            n = sum(len(vistos.get((nome, cor, tipo), ())) for cor in cores)
+            if n:
+                vista[tipo] = n
+        return vista
+
     camadas = []
     for nome, contagem in coleta.contagem.items():
         votos = coleta.votos.get(nome) or coleta.votos_todos[nome]
         total = sum(contagem.values())
+        por_cor = coleta.contagem_cor[nome]
+        # a cor com mais feicoes primeiro
+        cores = tuple(sorted(por_cor, key=lambda cor: (-sum(por_cor[cor].values()), cor)))
         camadas.append(Camada(
             nome=nome, cor=votos.most_common(1)[0][0],
             oculta=coleta.ocultas[nome] == total, contagem=dict(contagem),
             fora=fora[nome], bbox=bbox.get(nome), n_ocultas=coleta.ocultas[nome],
-            bbox_visivel=bbox_visivel.get(nome)))
+            bbox_visivel=bbox_visivel.get(nome), cores=cores,
+            contagem_vista=contagem_vista(contagem, nome, cores)))
     camadas.sort(key=lambda c: (not c.tem_desenho, c.nome.casefold()))
 
     unidades = []
     for camada in camadas:
         por_cor = coleta.contagem_cor[camada.nome]
-        # a cor com mais feicoes primeiro
-        ordem = sorted(por_cor, key=lambda cor: (-sum(por_cor[cor].values()), cor))
-        for cor in ordem:
+        for cor in camada.cores:
             contagem = dict(por_cor[cor])
-            rotulo = (camada.nome if len(ordem) == 1
+            rotulo = (camada.nome if len(camada.cores) == 1
                       else "%s · %s" % (camada.nome, dxf_estilo.nome_da_cor(cor)))
             n_ocultas = coleta.ocultas_cor[camada.nome][cor]
             unidades.append(Unidade(
                 camada=camada.nome, cor=cor, rotulo=rotulo,
                 oculta=n_ocultas == sum(contagem.values()), contagem=contagem,
                 bbox=bbox_cor.get((camada.nome, cor)), n_ocultas=n_ocultas,
-                bbox_visivel=bbox_cor_visivel.get((camada.nome, cor))))
+                bbox_visivel=bbox_cor_visivel.get((camada.nome, cor)),
+                contagem_vista=contagem_vista(contagem, camada.nome, (cor,))))
     return Previa(camadas, dict(formas), caixa_area, sum(fora.values()), distancia, unidades,
                   grupos=grupos, hachuras=hachuras, textos=textos, imagens=imagens)
 

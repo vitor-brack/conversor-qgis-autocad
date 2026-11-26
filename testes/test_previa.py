@@ -160,6 +160,26 @@ def test_itens_sao_as_camadas_ou_as_cores(tmp_path):
     assert len(p.itens(por_cor=True)) == 3
 
 
+def test_a_camada_sabe_as_cores_dela_a_mais_usada_primeiro(tmp_path):
+    p = _desenho_com_cores(tmp_path)
+    a, b = p.camadas
+    assert a.cores == ("#ff0000", "#0000ff") and b.cores == ("#00ff00",)
+
+
+def test_o_que_tem_conta_as_linhas_como_elas_se_veem(tmp_path):
+    # No AutoCAD cada trecho reto e uma entidade: a moldura do carimbo (SELO) tinha 16
+    # "linhas" na lista, mas quem olha (e o clique) ve 10. A lista conta como se ve.
+    doc = ezdxf.new("R2010")
+    msp = doc.modelspace()
+    quadrado = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+    for a, b in zip(quadrado, quadrado[1:]):
+        msp.add_line(a, b, dxfattribs={"layer": "Q"})
+    msp.add_line((50, 0), (60, 0), dxfattribs={"layer": "Q"})
+    q = por_nome(previa.ler(salvar(doc, tmp_path, "quadrado.dxf")))["Q"]
+    assert q.resumo() == "2 linhas", "o quadrado e uma linha so -> %s" % q.resumo()
+    assert q.contagem["linha"] == 5, "a conta das entidades continua a mesma"
+
+
 def test_formas_da_camada_podem_ser_filtradas_pela_cor(tmp_path):
     p = _desenho_com_cores(tmp_path)
     azuis = p.formas("A", cor="#0000ff")
