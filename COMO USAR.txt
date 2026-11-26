@@ -358,6 +358,11 @@ cliques no .qgs.
 Se algum dia quiser abrir so os dados, sem projeto:
    Camada > Adicionar Camada > Adicionar Camada Vetorial
 ou simplesmente arraste o arquivo para dentro do QGIS.
+As cores do AutoCAD vem junto do mesmo jeito: o .gpkg guarda
+as cores dentro dele, e cada .shp ou .geojson ganha ao lado um
+arquivo .qml com o mesmo nome, que leva as cores. O QGIS aplica
+as cores sozinho ao abrir. Se copiar um .shp para outro lugar,
+leve o .qml junto.
 
 Uma coisa a lembrar: o .qgs e os dados andam juntos. Se copiar
 para um pendrive, leve a pasta inteira, nao so o .qgs.
