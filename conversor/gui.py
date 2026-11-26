@@ -458,18 +458,18 @@ class AbaCadParaQgis(ttk.Frame):
                                     "em um arquivo por tipo, saem so pontos, linhas e areas)",
                         variable=self.sem_textos).grid(row=17, column=0, sticky="w")
         self.imagens = tk.BooleanVar(value=app.cfg["incluir_imagens"])
-        ttk.Checkbutton(caixa, text="Trazer as imagens do desenho (logotipos, "
-                                    "fotos) - o arquivo da imagem precisa estar "
-                                    "na pasta do desenho", variable=self.imagens
+        ttk.Checkbutton(caixa, text="Trazer as imagens do desenho (tabelas coladas, "
+                                    "logotipos, fotos ligadas que estejam na pasta do "
+                                    "desenho)", variable=self.imagens
                         ).grid(row=16, column=0, sticky="w")
 
         self.gerar_projeto = tk.BooleanVar(value=app.cfg["gerar_projeto_qgis"])
         ttk.Checkbutton(caixa, text="Criar tambem um projeto .qgs que abre com "
                                     "dois cliques", variable=self.gerar_projeto
                         ).grid(row=14, column=0, sticky="w")
-        ttk.Label(caixa, text="Sem o projeto, abra os dados no QGIS por "
-                              "Camada > Adicionar Camada > Adicionar Camada "
-                              "Vetorial, ou arraste o arquivo para a janela.",
+        ttk.Label(caixa, text="Sem o projeto, arraste o arquivo para a janela do QGIS: "
+                              "vem tudo, inclusive as imagens (Camada > Adicionar "
+                              "Camada Vetorial nao traz as imagens).",
                   foreground="#555", wraplength=620
                   ).grid(row=15, column=0, sticky="w", padx=(20, 0))
         self._alternar_reproj()
@@ -854,10 +854,11 @@ class App(tk.Tk):
                          % os.path.basename(projeto))
             pasta = os.path.dirname(projeto)
         elif arquivos and not arquivos[0].lower().endswith((".dxf", ".dwg")):
-            mensagem += ("\n\nNo QGIS, abra por Camada > Adicionar Camada > "
-                         "Adicionar Camada Vetorial\n(ou arraste o arquivo para "
-                         "a janela do QGIS).\nO menu 'Abrir Projeto' NAO serve "
-                         "para dados - ele so aceita .qgs e .qgz.")
+            mensagem += ("\n\nNo QGIS, arraste o arquivo para a janela do QGIS: vem "
+                         "tudo, inclusive as imagens.\n(Camada > Adicionar Camada > "
+                         "Adicionar Camada Vetorial nao traz as imagens.)\nO menu "
+                         "'Abrir Projeto' NAO serve para dados - ele so aceita .qgs "
+                         "e .qgz.")
 
         if pasta and messagebox.askyesno("Concluido", mensagem + "\n\nAbrir a pasta?"):
             try:

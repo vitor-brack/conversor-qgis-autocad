@@ -53,10 +53,11 @@ except Exception as _erro:   # a conversao continua sem este modulo
 # sai como tinta translucida, como antes.
 LIMITE_SEGMENTOS = 250000
 
-# o que a copia filtrada leva da secao ENTITIES
-_ENTIDADES = {"HATCH", "MTEXT", "INSERT"}
-# e o que ela leva a mais para a previa: os textos, as cotas (o texto delas) e as imagens
-_DA_PREVIA = {"TEXT", "DIMENSION", "ARC_DIMENSION", "LARGE_RADIAL_DIMENSION", "OLE2FRAME"}
+# o que a copia filtrada leva da secao ENTITIES (OLE2FRAME: as figuras coladas, que o GDAL
+# nao le e a conversao leva como imagem)
+_ENTIDADES = {"HATCH", "MTEXT", "INSERT", "OLE2FRAME"}
+# e o que ela leva a mais para a previa: os textos e as cotas (o texto delas)
+_DA_PREVIA = {"TEXT", "DIMENSION", "ARC_DIMENSION", "LARGE_RADIAL_DIMENSION"}
 _UNICODE = re.compile(r"\\U\+([0-9A-Fa-f]{4})")
 
 
@@ -65,7 +66,9 @@ _UNICODE = re.compile(r"\\U\+([0-9A-Fa-f]{4})")
 # ---------------------------------------------------------------------------
 
 def ler(caminho_dxf, registrar=print, para_previa=False):
-    """Devolve {'hachuras': [...], 'mtexts': [...], 'falhas': set(), 'ordem': {...}} ou None.
+    """Devolve {'hachuras': [...], 'mtexts': [...], 'falhas': set(), 'ordem': {...},
+    'figuras': [...]} ou None. `figuras` sao as figuras coladas no desenho
+    (previa_ezdxf.figuras_coladas), que a conversao leva como imagem.
 
     `para_previa` le tambem o que so a previa desenha: os textos como o AutoCAD os mostra
     ('textos', 'textos_visiveis') e as imagens coladas no desenho ('imagens'), ver
@@ -79,9 +82,9 @@ def ler(caminho_dxf, registrar=print, para_previa=False):
     try:
         copia, tipos = _filtrar(caminho_dxf, codec,
                                 _ENTIDADES | _DA_PREVIA if para_previa else _ENTIDADES)
-        if (not para_previa and not (tipos & {"HATCH", "MTEXT"})
+        if (not para_previa and not (tipos & {"HATCH", "MTEXT", "OLE2FRAME"})
                 and not _blocos_tem(copia)):
-            return {"hachuras": [], "mtexts": [], "falhas": set(), "ordem": {}}
+            return {"hachuras": [], "mtexts": [], "falhas": set(), "ordem": {}, "figuras": []}
         doc = ezdxf.readfile(copia, encoding="utf-8")
         desenho = _extrair(doc)
         # A ordem em que o AutoCAD desenha (o "trazer para a frente"), da tabela
@@ -97,9 +100,12 @@ def ler(caminho_dxf, registrar=print, para_previa=False):
         ocultas = {c.dxf.name for c in doc.layers if c.is_off() or c.is_frozen()}
         for h in desenho["hachuras"]:
             h["oculta"] = h["camada"] in ocultas
+        from . import previa_ezdxf
         if para_previa:
-            from . import previa_ezdxf
             desenho.update(previa_ezdxf.ler(doc, _Cores(doc)))
+            desenho["figuras"] = desenho["imagens"]
+        else:
+            desenho["figuras"] = previa_ezdxf.figuras_coladas(doc)
         return desenho
     except Exception as erro:
         registrar("Aviso: nao consegui ler hachuras e textos formatados (%s); "

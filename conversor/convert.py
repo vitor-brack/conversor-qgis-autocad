@@ -1130,6 +1130,17 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
                                            epsg_origem, transformador, caixa, registrar,
                                            dxf_estilo.camadas_ocultas(caminho_dxf))
         gerados.extend(c["arquivo"] for c in camadas_imagem)
+    # as figuras coladas no desenho (a tabela de areas do desenho real), que vao junto
+    # com a camada delas
+    figuras = (desenho or {}).get("figuras") or []
+    if camadas is not None:
+        figuras = [f for f in figuras if f["camada"] in camadas]
+    if incluir_imagens and figuras:
+        usados = {c["nome"] for c in camadas_projeto + camadas_imagem}
+        camadas_figura = _exportar_figuras(figuras, saida, formato, caminho_qgs, epsg_origem,
+                                           transformador, caixa, registrar, usados)
+        gerados.extend(c["arquivo"] for c in camadas_figura if c["arquivo"] not in gerados)
+        camadas_imagem.extend(camadas_figura)
 
     extensao = tuple(caixa) if caixa[0] < caixa[2] else None
 
@@ -1278,6 +1289,50 @@ def _exportar_imagens(extras, entrada, caminho_dxf, caminho_qgs, epsg_origem,
         registrar("Imagem NAO encontrada: %s\n"
                   "  -> ela ficou de fora. Coloque o arquivo na mesma pasta do "
                   "desenho e converta de novo." % gravado)
+    return camadas
+
+
+def _exportar_figuras(figuras, saida, formato, caminho_qgs, epsg_origem, transformador,
+                      caixa, registrar, usados):
+    """Grava as figuras coladas no desenho (OLE2FRAME, ver previa_ezdxf.figuras_coladas) e
+    devolve as camadas de imagem do projeto. No GPKG elas vao para dentro do arquivo; em
+    Shapefile e GeoJSON, um PNG com o arquivo de mundo na pasta dos dados. A figura fica
+    no sistema do desenho: reprojetando, o QGIS a reprojeta na tela.
+
+    Cada uma se chama "<camada>_Figura", como as camadas de dados ("0_LineString")."""
+    pasta_qgs = os.path.dirname(os.path.abspath(caminho_qgs))
+    camadas = []
+    for figura in figuras:
+        base = _nome_seguro("%s_Figura" % figura["camada"])
+        nome, n = base, 2
+        while nome in usados:
+            nome, n = "%s_%d" % (base, n), n + 1
+        usados.add(nome)
+        altura, largura = figura["imagem"].shape[:2]
+        try:
+            if formato == "GPKG":
+                imagens_cad.gravar_figura_no_gpkg(saida, nome, figura["imagem"],
+                                                  figura["caixa"], epsg_origem)
+                arquivo = saida
+                fonte = "GPKG:./%s:%s" % (os.path.basename(saida), nome)
+            else:
+                arquivo = imagens_cad.gravar_figura_png(
+                    os.path.join(os.path.splitext(saida)[0], nome + ".png"),
+                    figura["imagem"], figura["caixa"], epsg_origem)
+                fonte = "./" + os.path.relpath(arquivo, pasta_qgs).replace("\\", "/")
+        except Exception as erro:
+            # como o estilo e o projeto: os dados ja estao salvos
+            registrar("Aviso: nao consegui gravar a figura colada da camada %s (%s)."
+                      % (figura["camada"], erro))
+            continue
+        xmin, ymin, xmax, ymax = figura["caixa"]
+        cantos = [(xmin, ymin), (xmax, ymax)]
+        if transformador:
+            cantos = _reprojetar(cantos, transformador)
+        _estender(caixa, cantos)
+        camadas.append({"raster": True, "nome": nome, "epsg": int(epsg_origem),
+                        "fonte": fonte, "arquivo": arquivo, "oculta": False})
+        registrar("Figura colada incluida: %s (%d x %d pixels)." % (nome, largura, altura))
     return camadas
 
 

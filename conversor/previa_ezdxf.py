@@ -52,7 +52,7 @@ def ler(doc, cores):
     atributo) cujas feicoes o AutoCAD nao mostra."""
     camadas = {c.dxf.name.upper(): c for c in doc.layers}
     return {"textos": _textos(doc, cores, camadas), "ocultos": _ocultos(doc, camadas),
-            "imagens": _imagens(doc)}
+            "imagens": figuras_coladas(doc)}
 
 
 def _escondida(camadas, nome, congelada_basta=False):
@@ -310,7 +310,10 @@ def _texto(entidade, camada, cor, topo):
 # Imagens coladas (OLE2FRAME)
 # ---------------------------------------------------------------------------
 
-def _imagens(doc):
+def figuras_coladas(doc):
+    """As figuras coladas no espaco do modelo, fora das camadas desligadas ou congeladas:
+    [{'camada', 'caixa' (xmin, ymin, xmax, ymax), 'imagem' HxWx3 uint8, 'topo'}]. A previa
+    as desenha e a conversao as leva (convert._exportar_figuras)."""
     camadas = {c.dxf.name.upper(): c for c in doc.layers}
     saida = []
     for ole in doc.modelspace().query("OLE2FRAME"):
