@@ -196,3 +196,61 @@ def test_a_conversao_que_falha_no_meio_tambem_atualiza_o_aviso(app, monkeypatch,
 
     app.executar(aba.botao, tarefa)
     assert esperar(app, lambda: "substitu" in aba.saida.aviso.cget("text").lower())
+
+
+# --------------------------------------------------------------- sem "Reprojetar"
+# Na aba AutoCAD -> QGIS a caixa 2 so DECLARA em que sistema o desenho esta, e o arquivo sai
+# nesse mesmo sistema. Nao ha mais "Reprojetar para outro sistema": mudar a caixa 2 nao
+# transforma numero nenhum, so troca o que o QGIS entende que eles sao. (O motor continua
+# sabendo reprojetar: a linha de comando usa.)
+def _textos_da_tela(widget):
+    achados = []
+    for filho in widget.winfo_children():
+        try:
+            achados.append(str(filho.cget("text")))
+        except Exception:
+            pass                        # nem todo widget tem texto
+        achados.extend(_textos_da_tela(filho))
+    return achados
+
+
+def test_a_aba_do_autocad_nao_oferece_reprojetar(app):
+    textos = _textos_da_tela(app.aba2)
+    assert any("Em que coordenadas" in t for t in textos), "a caixa 2 continua la"
+    assert not [t for t in textos if "eprojet" in t], \
+        "nenhum texto da aba fala em reprojetar: %s" % [t for t in textos if "eprojet" in t]
+
+
+@pytest.mark.parametrize("epsg", [31982, 4674])
+def test_o_sistema_da_caixa_2_so_declara_de_onde_o_desenho_vem(app, monkeypatch, tmp_path,
+                                                               epsg):
+    # guarda de regressao: ja passava antes de o checkbox sair, e tem de continuar passando
+    from conversor import convert
+    chamadas = []
+
+    def falsa(**opcoes):
+        chamadas.append(opcoes)
+        return {"feicoes": 0, "arquivos": []}
+
+    monkeypatch.setattr(convert, "cad_para_qgis", falsa)
+    avisos, tarefas = [], []
+    monkeypatch.setattr("conversor.gui.messagebox.showwarning",
+                        lambda *a, **k: avisos.append(a))
+    # a tarefa le as variaveis do Tk de dentro da thread, o que so funciona com o mainloop
+    # rodando (no programa roda; aqui so ha update()): ela e chamada daqui mesmo
+    monkeypatch.setattr(app, "executar", lambda botao, tarefa: tarefas.append(tarefa))
+    aba = app.aba2
+    sistema_antes = aba.crs_origem.obter()
+    try:
+        aba.entrada.insert(0, app.dxf)
+        aba.crs_origem.definir(epsg)
+        aba.saida.definir_saida(str(tmp_path / "declarado.gpkg"))
+        aba.converter()
+        assert not avisos, "a janela reclamou: %s" % (avisos,)
+        assert len(tarefas) == 1, "o CONVERTER comecou a conversao"
+        tarefas[0](lambda *_: None)
+    finally:
+        aba.entrada.delete(0, "end")
+        aba.crs_origem.definir(sistema_antes)
+    assert chamadas[0]["epsg_origem"] == epsg
+    assert chamadas[0].get("epsg_destino") is None, "o arquivo sai no sistema declarado"

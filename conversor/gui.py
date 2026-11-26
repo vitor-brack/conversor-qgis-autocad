@@ -437,12 +437,6 @@ class AbaCadParaQgis(ttk.Frame):
                             ).grid(row=i, column=0, sticky="w")
 
         ttk.Separator(caixa, orient="horizontal").grid(row=9, column=0, sticky="we", pady=8)
-        self.reprojetar = tk.BooleanVar(value=False)
-        ttk.Checkbutton(caixa, text="Reprojetar para outro sistema:",
-                        variable=self.reprojetar, command=self._alternar_reproj
-                        ).grid(row=10, column=0, sticky="w")
-        self.crs_destino = SeletorCRS(caixa, app.cfg["epsg_qgis"])
-        self.crs_destino.grid(row=11, column=0, sticky="we", padx=(20, 0))
 
         self.separar = tk.BooleanVar(value=app.cfg["separar_por_camada"])
         ttk.Checkbutton(caixa, text="Criar uma camada do QGIS para cada camada do "
@@ -472,7 +466,6 @@ class AbaCadParaQgis(ttk.Frame):
                               "Camada Vetorial nao traz as imagens).",
                   foreground="#555", wraplength=620
                   ).grid(row=15, column=0, sticky="w", padx=(20, 0))
-        self._alternar_reproj()
         linha += 1
 
         caixa = ttk.LabelFrame(self, text=" 4. Onde salvar ", padding=8)
@@ -598,14 +591,6 @@ class AbaCadParaQgis(ttk.Frame):
                                          if epsg and crs_presets.valido(epsg) else True)
         self.painel.carregar(caminho)
 
-    def _alternar_reproj(self):
-        estado = "normal" if self.reprojetar.get() else "disabled"
-        for filho in self.crs_destino.winfo_children():
-            try:
-                filho.config(state=estado)
-            except tk.TclError:
-                pass
-
     def escolher_entrada(self):
         caminho = filedialog.askopenfilename(
             title="Escolha o desenho do AutoCAD", filetypes=FILTRO_CAD,
@@ -690,9 +675,6 @@ class AbaCadParaQgis(ttk.Frame):
         self.app.cfg["sem_textos_e_hachuras"] = self.sem_textos.get()
         self.app.cfg["gerar_projeto_qgis"] = self.gerar_projeto.get()
         self.app.cfg["incluir_imagens"] = self.imagens.get()
-        destino = self.crs_destino.obter() if self.reprojetar.get() else None
-        if destino:
-            self.app.cfg["epsg_qgis"] = destino
 
         painel = self.painel
         # Enquanto converte, o DXF temporario do painel nao pode ser apagado. A
@@ -713,7 +695,7 @@ class AbaCadParaQgis(ttk.Frame):
                                  else "os %d textos escolhidos" % n_textos))
                 return convert.cad_para_qgis(
                     entrada=entrada, saida=saida, epsg_origem=epsg_origem,
-                    formato=self.formato.get(), epsg_destino=destino,
+                    formato=self.formato.get(),
                     separar_por_camada=self.separar.get(),
                     poli_fechada_como_poligono=self.fechadas.get(),
                     gerar_projeto=self.gerar_projeto.get(),

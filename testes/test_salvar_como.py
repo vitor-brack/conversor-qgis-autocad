@@ -258,8 +258,7 @@ def test_focar_o_nome_confere_de_novo_se_o_arquivo_existe(campo, raiz, tmp_path)
 
 
 def test_a_pasta_fica_cinza_e_nao_da_para_clicar_nem_selecionar(campo, tmp_path):
-    # como os campos de "Reprojetar para outro sistema" quando a caixa esta desmarcada: so o
-    # botao "Escolher pasta..." muda a pasta (e o texto continua aparecendo)
+    # so o botao "Escolher pasta..." muda a pasta (e o texto continua aparecendo)
     assert str(campo.pasta_entrada.cget("state")) == "disabled"
     campo.sugerir(desenho_em(tmp_path))
     assert campo.pasta_var.get() == os.path.normpath(str(tmp_path))

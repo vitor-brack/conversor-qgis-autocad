@@ -95,7 +95,6 @@ def test_janela_monta_e_avisa_sobre_crs_em_graus(monkeypatch, tmp_path):
         app.update_idletasks()
         abas = app.winfo_children()
         app.aba1._atualizar_derivados()
-        app.aba2._alternar_reproj()
         app.aba1._alternar_origem()
         app.registrar("teste")
         app.aba1.crs_destino.definir(4326)

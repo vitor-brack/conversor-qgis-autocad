@@ -95,9 +95,9 @@ class CampoSaida(ttk.Frame):
         self.columnconfigure(1, weight=1)
 
         ttk.Label(self, text="Pasta").grid(row=0, column=0, sticky="w", padx=(0, 8))
-        # cinza e sem clique, como os campos de "Reprojetar" desmarcado: o caminho comprido
-        # ninguem edita nem seleciona, escolhe-se no botao (o texto entra pela variavel, que
-        # funciona com o campo desligado). Aparece o fim dele (a pasta em que se esta)
+        # cinza e sem clique: o caminho comprido ninguem edita nem seleciona, escolhe-se no
+        # botao (o texto entra pela variavel, que funciona com o campo desligado). Aparece
+        # o fim dele (a pasta em que se esta)
         self.pasta_entrada = ttk.Entry(self, textvariable=self.pasta_var, state="disabled")
         self.pasta_entrada.grid(row=0, column=1, sticky="we")
         self.pasta_entrada.bind("<Configure>", lambda _e: self._mostrar_o_fim_da_pasta())

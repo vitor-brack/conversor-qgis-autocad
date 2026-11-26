@@ -9,7 +9,6 @@ ARQUIVO = os.path.join(PASTA, "config.json")
 
 PADROES = {
     "epsg_cad": 31982,          # CRS gravado no DXF
-    "epsg_qgis": 31982,         # CRS de saida indo para o QGIS
     "formato_saida": "GPKG",
     "somente_ascii": True,       # transliterar acentos (ver dxfio.py)
     "salvar_atributos_csv": True,
