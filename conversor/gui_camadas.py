@@ -577,9 +577,11 @@ class PainelCamadas(ttk.LabelFrame):
         self._renderizar()
 
     def marcar_todas(self):
-        """Marca as que tem geometria entre as que a lista mostra."""
+        """Marca tudo o que tem desenho entre o que a lista mostra: pontos, linhas, areas,
+        textos, hachuras ou figuras. Camada so de textos entra tambem, porque os textos
+        (e as hachuras) vao para a conversao pela camada marcada."""
         for nome in self.nomes_na_lista():
-            if self._camadas[nome].tem_geometria:
+            if self._camadas[nome].tem_desenho:
                 self.marcadas.add(nome)
             self._atualizar_linha(nome)
         self._atualizar_resumo()

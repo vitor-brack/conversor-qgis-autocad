@@ -116,15 +116,33 @@ def test_alternar_marca_e_desmarca_e_o_resumo_acompanha(painel):
     assert "Carimbo" not in painel.marcadas
 
 
-def test_marcar_todas_pega_so_as_que_tem_geometria_e_as_que_a_lista_mostra(painel, desenho):
+def test_marcar_todas_pega_tudo_o_que_tem_desenho_e_as_que_a_lista_mostra(painel, desenho):
+    """Camada so de textos (como o Carimbo) tambem e marcada: textos, hachuras e figuras
+    vao para a conversao pela camada marcada, entao ficar de fora era perder o texto."""
     painel.desmarcar_todas()
     assert painel.marcadas == set()
     painel.marcar_todas()
+    assert "Carimbo" in painel.marcadas, "camada so de textos: %s" % sorted(painel.marcadas)
     assert painel.marcadas == {c.nome for c in desenho[1].camadas
-                               if c.tem_geometria and not c.oculta}
+                               if c.tem_desenho and not c.oculta}
     painel.mostrar_ocultas.set(True)
     painel.marcar_todas()
-    assert painel.marcadas == {c.nome for c in desenho[1].camadas if c.tem_geometria}
+    assert painel.marcadas == {c.nome for c in desenho[1].camadas if c.tem_desenho}
+
+
+def test_marcar_todas_leva_os_textos_para_a_conversao(painel, desenho):
+    """O que a pessoa quer de 'Marcar todas': tudo, inclusive os textos, chega ao QGIS."""
+    from conversor import convert
+    dxf, _previa, pasta = desenho
+    painel.desmarcar_todas()
+    painel.marcar_todas()
+    selecao = painel.selecao()
+    saida = str(pasta / "marcar_todas.gpkg")
+    convert.cad_para_qgis(dxf, saida, 31982, formato="GPKG", gerar_projeto=False,
+                          camadas=selecao["camadas"], feicoes_escolhidas=selecao["feicoes"],
+                          registrar=lambda *_: None)
+    assert "Carimbo_Texto" in convert.listar_camadas(saida), \
+        "os 3 textos da camada Carimbo -> %s" % convert.listar_camadas(saida)
 
 
 def test_buscar_mostra_so_as_que_combinam_e_avisa_quando_nao_ha(painel):
