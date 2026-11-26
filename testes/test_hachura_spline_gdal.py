@@ -134,7 +134,7 @@ def test_conversao_leva_a_linha_depois_da_hachura_em_spline(tmp_path):
     convert.cad_para_qgis(caminho, saida, 31982, formato="GPKG", gerar_projeto=False,
                           registrar=lambda *_: None)
     linhas = 0
-    for camada in fiona.listlayers(saida):
+    for camada in convert.listar_camadas(saida):
         with fiona.open(saida, layer=camada) as f:
             linhas += sum(1 for ft in f if ft["properties"].get("Layer") == "CHAMADA"
                           and ft["geometry"]["type"].endswith("LineString"))

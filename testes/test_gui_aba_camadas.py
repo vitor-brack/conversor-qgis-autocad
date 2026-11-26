@@ -13,7 +13,7 @@ import fiona
 import pytest
 
 import gerar_camadas
-from conversor import config
+from conversor import config, convert
 
 
 class AppFalso:
@@ -91,7 +91,7 @@ def test_converte_so_as_camadas_marcadas(aba, raiz, dxf):
     aba.converter()
     assert aba.app_falso.tarefa is not None, "a conversao foi pedida -> avisos: %s" % aba.avisos
     aba.app_falso.tarefa(lambda *_: None)
-    assert fiona.listlayers(saida) == ["Pontos_Point"], fiona.listlayers(saida)
+    assert convert.listar_camadas(saida) == ["Pontos_Point"], convert.listar_camadas(saida)
 
 
 def test_dxf_temporario_fica_protegido_desde_o_clique_em_converter(aba, raiz, dxf):
@@ -133,8 +133,8 @@ def test_converte_separando_a_camada_por_cor(aba, raiz, tmp_path):
     aba.converter()
     assert aba.app_falso.tarefa is not None, "avisos: %s" % aba.avisos
     aba.app_falso.tarefa(lambda *_: None)
-    assert fiona.listlayers(saida) == ["A_vermelho_LineString", "A_azul_LineString",
-                                       "B_LineString"] or sorted(fiona.listlayers(saida)) ==         ["A_azul_LineString", "A_vermelho_LineString", "B_LineString"], fiona.listlayers(saida)
+    assert convert.listar_camadas(saida) == ["A_vermelho_LineString", "A_azul_LineString",
+                                       "B_LineString"] or sorted(convert.listar_camadas(saida)) ==         ["A_azul_LineString", "A_vermelho_LineString", "B_LineString"], convert.listar_camadas(saida)
 
 
 def test_converte_so_a_cor_marcada_de_uma_camada(aba, raiz, tmp_path):
@@ -147,7 +147,7 @@ def test_converte_so_a_cor_marcada_de_uma_camada(aba, raiz, tmp_path):
     aba.painel.alternar(("A", "#0000ff"))
     aba.converter()
     aba.app_falso.tarefa(lambda *_: None)
-    assert fiona.listlayers(saida) == ["A_azul_LineString"], fiona.listlayers(saida)
+    assert convert.listar_camadas(saida) == ["A_azul_LineString"], convert.listar_camadas(saida)
     with fiona.open(saida, layer="A_azul_LineString") as f:
         assert len(f) == 1, "so a linha azul"
 
@@ -207,7 +207,7 @@ def test_converte_so_a_linha_clicada_no_desenho(aba, raiz, tmp_path):
     assert aba.app_falso.tarefa is not None, \
         "so a linha clicada ja basta para converter -> avisos: %s" % aba.avisos
     aba.app_falso.tarefa(lambda *_: None)
-    assert fiona.listlayers(saida) == ["A_LineString"], fiona.listlayers(saida)
+    assert convert.listar_camadas(saida) == ["A_LineString"], convert.listar_camadas(saida)
     with fiona.open(saida, layer="A_LineString") as f:
         linhas = [ft["geometry"]["coordinates"] for ft in f]
     assert len(linhas) == 1 and round(linhas[0][0][1]) == 30, \
@@ -224,8 +224,8 @@ def test_linha_clicada_soma_com_a_camada_marcada_na_lista(aba, raiz, tmp_path):
     aba.painel.alternar("B")
     aba.converter()
     aba.app_falso.tarefa(lambda *_: None)
-    assert sorted(fiona.listlayers(saida)) == ["A_LineString", "B_LineString"], \
-        fiona.listlayers(saida)
+    assert sorted(convert.listar_camadas(saida)) == ["A_LineString", "B_LineString"], \
+        convert.listar_camadas(saida)
 
 
 def test_linha_clicada_com_a_camada_separada_por_cor_sai_com_o_nome_da_cor(aba, raiz, tmp_path):
@@ -238,7 +238,7 @@ def test_linha_clicada_com_a_camada_separada_por_cor_sai_com_o_nome_da_cor(aba, 
     _clicar_na_linha(aba.painel, 50, 30)
     aba.converter()
     aba.app_falso.tarefa(lambda *_: None)
-    assert fiona.listlayers(saida) == ["A_azul_LineString"], fiona.listlayers(saida)
+    assert convert.listar_camadas(saida) == ["A_azul_LineString"], convert.listar_camadas(saida)
 
 
 def test_o_log_diz_quantas_linhas_foram_escolhidas_no_desenho(aba, raiz, tmp_path):
@@ -280,7 +280,7 @@ def test_com_a_opcao_desligada_converte_tudo_como_sempre(aba, raiz, dxf):
     escolher(aba, caminho, saida)
     aba.converter()
     aba.app_falso.tarefa(lambda *_: None)
-    camadas = fiona.listlayers(saida)
+    camadas = convert.listar_camadas(saida)
     assert "Pontos_Point" in camadas and "Visivel_LineString" in camadas, camadas
 
 

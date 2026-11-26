@@ -84,7 +84,7 @@ def textos_encavalados(saida):
     import math
     from conversor import textos_cad
     itens = []
-    for camada in fiona.listlayers(saida):
+    for camada in convert.listar_camadas(saida):
         if not camada.endswith("_Texto"):
             continue
         with fiona.open(saida, layer=camada) as c:
@@ -166,7 +166,7 @@ def main():
                       and vista[2] <= caixa[2] + folga and vista[3] <= caixa[3] + folga)
         escondidas_cad = dxf_estilo.camadas_ocultas(dxf)
         marcadas = dict(re.findall(r'<layer-tree-layer id="[^"]*" name="([^"]+)"[^>]*checked="([^"]+)"', qgs))
-        camadas = fiona.listlayers(saida)
+        camadas = convert.listar_camadas(saida)
         chegaram = 0
         com_quebra = []
         a_mostra = []

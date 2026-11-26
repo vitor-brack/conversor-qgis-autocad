@@ -24,7 +24,7 @@ def converter(dxf, pasta, nome="s.gpkg", **opcoes):
     saida = os.path.join(str(pasta), nome)
     res = convert.cad_para_qgis(dxf, saida, 31982, gerar_projeto=False,
                                 registrar=lambda *_: None, **opcoes)
-    return res, sorted(fiona.listlayers(saida))
+    return res, sorted(convert.listar_camadas(saida))
 
 
 @pytest.fixture(scope="module")

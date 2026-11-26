@@ -38,7 +38,7 @@ def conv():
     log = []
     res = convert.cad_para_qgis(dxf, saida, 31982, registrar=log.append)
     return SimpleNamespace(dxf=dxf, esperado=esperado, saida=saida, log=log, res=res,
-                           camadas=fiona.listlayers(saida))
+                           camadas=convert.listar_camadas(saida))
 
 
 @pytest.fixture(scope="module")

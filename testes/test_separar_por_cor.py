@@ -44,7 +44,7 @@ def converter(dxf, nome, **opcoes):
     saida = os.path.join(str(pasta), nome)
     convert.cad_para_qgis(caminho, saida, 31982, gerar_projeto=False,
                           registrar=lambda *_: None, **opcoes)
-    return saida, sorted(fiona.listlayers(saida))
+    return saida, sorted(convert.listar_camadas(saida))
 
 
 def contar(saida, camada):
@@ -132,7 +132,7 @@ def test_hachura_e_agrupada_e_filtrada_pela_cor_do_ezdxf(tmp_path, monkeypatch):
         saida = os.path.join(str(tmp_path), nome)
         convert.cad_para_qgis(caminho, saida, 31982, gerar_projeto=False,
                               registrar=lambda *_: None, **opcoes)
-        return saida, sorted(fiona.listlayers(saida))
+        return saida, sorted(convert.listar_camadas(saida))
 
     saida, camadas = converter_h("laranja_e_verde.gpkg", camadas={"H"},
                                  cores={"H": {"#ff7f00", "#00ff00"}}, separar_por_cor={"H"})

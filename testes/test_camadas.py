@@ -33,7 +33,7 @@ def conv():
     raiz = ET.parse(res["projeto"]).getroot()
     return SimpleNamespace(
         dxf=dxf, esperado=esperado, saida=saida, log=log, res=res, raiz=raiz,
-        camadas=fiona.listlayers(saida),
+        camadas=convert.listar_camadas(saida),
         marcada={n.get("name"): n.get("checked") == "Qt::Checked"
                  for n in raiz.iter("layer-tree-layer")})
 

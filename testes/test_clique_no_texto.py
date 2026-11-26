@@ -23,7 +23,7 @@ import fiona
 import numpy as np
 import pytest
 
-from conversor import config, dxf_estilo, previa
+from conversor import config, convert, dxf_estilo, previa
 
 X0, Y0 = 448000.0, 6743000.0
 BRANCO = 255 * 3
@@ -289,7 +289,7 @@ def abrir(aba, raiz, caminho, saida):
 
 def textos_gravados(saida):
     textos = []
-    for camada in fiona.listlayers(saida):
+    for camada in convert.listar_camadas(saida):
         with fiona.open(saida, layer=camada) as f:
             textos += [ft["properties"].get("Text") for ft in f if ft["properties"].get("Text")]
     return sorted(textos)

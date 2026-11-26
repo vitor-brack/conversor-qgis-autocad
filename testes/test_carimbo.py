@@ -37,7 +37,7 @@ def conv():
     saida = os.path.join(BASE, "saida", "c.gpkg")
     res = convert.cad_para_qgis(dxf, saida, 31982, registrar=log.append)
     return SimpleNamespace(dxf=dxf, esperado=esperado, log=log, saida=saida, res=res,
-                           camadas=fiona.listlayers(saida))
+                           camadas=convert.listar_camadas(saida))
 
 
 def feicoes(arquivo, camada):

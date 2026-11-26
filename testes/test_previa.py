@@ -10,7 +10,6 @@ vaza.
 import os
 
 import ezdxf
-import fiona
 import pytest
 
 import gerar_camadas
@@ -46,7 +45,7 @@ def test_as_camadas_da_previa_sao_as_que_a_conversao_grava(desenho, lida):
     dxf, _, pasta = desenho
     saida = os.path.join(str(pasta), "c.gpkg")
     convert.cad_para_qgis(dxf, saida, 31982, gerar_projeto=False, registrar=lambda *_: None)
-    gravadas = {c.rsplit("_", 1)[0] for c in fiona.listlayers(saida)}
+    gravadas = {c.rsplit("_", 1)[0] for c in convert.listar_camadas(saida)}
     assert set(por_nome(lida)) == gravadas, \
         "mesmas camadas -> so na previa: %s, so na conversao: %s" % (
             sorted(set(por_nome(lida)) - gravadas), sorted(gravadas - set(por_nome(lida))))

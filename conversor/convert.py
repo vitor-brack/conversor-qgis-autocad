@@ -46,9 +46,13 @@ class ErroConversao(Exception):
 # ---------------------------------------------------------------------------
 
 def listar_camadas(caminho):
-    """Nomes das camadas de um arquivo. Um GPKG pode ter varias; um SHP tem uma."""
+    """Nomes das camadas de um arquivo. Um GPKG pode ter varias; um SHP tem uma.
+
+    A tabela de estilos do QGIS (layer_styles), que vai dentro dos GPKG que este programa
+    grava e dos que o QGIS salva com estilo, nao e dado do desenho e fica de fora."""
     try:
-        return list(fiona.listlayers(caminho))
+        return [nome for nome in fiona.listlayers(caminho)
+                if nome != qgis_project.TABELA_ESTILOS]
     except Exception as erro:
         raise ErroConversao("Nao foi possivel abrir '%s':\n%s"
                             % (os.path.basename(caminho), erro))
@@ -1130,11 +1134,13 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
     extensao = tuple(caixa) if caixa[0] < caixa[2] else None
 
     projeto = None
-    # Shapefile e GeoJSON sao um arquivo por camada, e nenhum guarda estilo: cada um
-    # ganha um .qml ao lado, que o QGIS aplica sozinho ao abrir o arquivo. Sem ele, quem
-    # arrasta so o .shp para o QGIS ve uma cor sorteada. No GPKG o estilo vai dentro.
+    # Sem estilo, quem abre so os dados no QGIS ve uma cor sorteada. Shapefile e GeoJSON
+    # sao um arquivo por camada e nenhum guarda estilo: cada um ganha um .qml ao lado,
+    # que o QGIS aplica sozinho ao abrir o arquivo. No GPKG o estilo vai dentro, na
+    # tabela layer_styles (qgis_project.gravar_estilos_no_gpkg). Os dois valem com ou
+    # sem o .qgs, entao as cores de cada camada sao preparadas sempre.
     escreve_qml = formato != "GPKG"
-    if camadas_projeto and (gerar_projeto or escreve_qml):
+    if camadas_projeto:
         com_texto = 0
         estilo_ponto = dxf_estilo.estilo_de_ponto(caminho_dxf)
         for camada in camadas_projeto:
@@ -1181,6 +1187,14 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
         except Exception as erro:
             # Como o projeto, o estilo e uma conveniencia: os dados ja estao salvos.
             registrar("Aviso: nao consegui gravar o estilo (.qml) ao lado dos dados (%s). "
+                      "Os dados foram convertidos normalmente, mas o QGIS vai sortear as cores."
+                      % erro)
+    elif camadas_projeto:
+        try:
+            qgis_project.gravar_estilos_no_gpkg(saida, camadas_projeto)
+            registrar("Cores do AutoCAD gravadas dentro do .gpkg: o QGIS as aplica ao abrir.")
+        except Exception as erro:
+            registrar("Aviso: nao consegui gravar as cores dentro do .gpkg (%s). "
                       "Os dados foram convertidos normalmente, mas o QGIS vai sortear as cores."
                       % erro)
 

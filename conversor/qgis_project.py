@@ -25,8 +25,11 @@ funciona nas versoes mais antigas, entao cobre mais gente.
 
 import datetime
 import os
+import sqlite3
+from contextlib import closing
 from xml.sax.saxutils import escape, quoteattr
 
+import fiona
 import pyproj
 
 # O QGIS chama as geometrias assim no arquivo de projeto -- "Line", nao "LineString".
@@ -420,8 +423,16 @@ def gerar_qml(caminho_qml, camada):
 
     `camada` e o dict de gerar_qgs (cores, campo_cor, texto, hachura...).
     """
+    with open(caminho_qml, "w", encoding="utf-8") as fp:
+        fp.write(estilo_qml(camada))
+    return caminho_qml
+
+
+def estilo_qml(camada):
+    """O estilo de UMA camada no formato do .qml: o que vai no arquivo ao lado do
+    shapefile e o que vai dentro do GeoPackage (gravar_estilos_no_gpkg)."""
     texto = bool(camada.get("texto"))
-    xml = (
+    return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         "<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>\n"
         '<qgis version="3.28.0" labelsEnabled="%d" styleCategories="AllStyleCategories">'
@@ -430,9 +441,46 @@ def gerar_qml(caminho_qml, camada):
         '</qgis>\n'
         % (1 if texto else 0, _renderizador(camada),
            _rotulagem_texto(camada.get("html", False)) if texto else ""))
-    with open(caminho_qml, "w", encoding="utf-8") as fp:
-        fp.write(xml)
-    return caminho_qml
+
+
+# A tabela em que o QGIS guarda estilos dentro de um GeoPackage, com as colunas que ele
+# mesmo cria ao "salvar estilo no banco de dados".
+TABELA_ESTILOS = "layer_styles"
+_ESQUEMA_ESTILOS = {"geometry": "None", "properties": {
+    "f_table_catalog": "str:256", "f_table_schema": "str:256", "f_table_name": "str:256",
+    "f_geometry_column": "str:256", "styleName": "str:30", "styleQML": "str",
+    "styleSLD": "str", "useAsDefault": "bool", "description": "str", "owner": "str:30",
+    "ui": "str:30", "update_time": "datetime"}}
+
+
+def gravar_estilos_no_gpkg(caminho_gpkg, camadas):
+    """Guarda o estilo de cada camada dentro do proprio .gpkg.
+
+    O GeoPackage leva a cor de cada feicao no campo cor_cad, mas o QGIS nao pinta pelo
+    campo: aberto sozinho (arrastado, ou por Camada > Adicionar Camada), sorteia uma
+    cor. Ele procura antes, na tabela layer_styles do arquivo, um estilo marcado como
+    padrao para a camada (f_table_schema '', f_table_name, f_geometry_column) e, achando,
+    aplica sozinho -- e assim a cor do AutoCAD chega a quem nunca abre o .qgs. Outros
+    programas ignoram a tabela.
+
+    `camadas` sao os dicts de gerar_qgs; o "nome" de cada um e o da tabela no .gpkg.
+    """
+    with closing(sqlite3.connect(caminho_gpkg)) as con:
+        colunas = dict(con.execute("SELECT table_name, column_name FROM gpkg_geometry_columns"))
+    agora = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    with fiona.open(caminho_gpkg, "w", driver="GPKG", layer=TABELA_ESTILOS,
+                    schema=_ESQUEMA_ESTILOS, FID="id") as destino:
+        for camada in camadas:
+            if camada["nome"] not in colunas:
+                continue
+            destino.write({"geometry": None, "properties": {
+                "f_table_catalog": "", "f_table_schema": "",
+                "f_table_name": camada["nome"],
+                "f_geometry_column": colunas[camada["nome"]],
+                "styleName": camada["nome"][:30], "styleQML": estilo_qml(camada),
+                "styleSLD": "", "useAsDefault": True,
+                "description": "Cores do desenho do AutoCAD", "owner": "", "ui": None,
+                "update_time": agora}})
 
 
 def _camada_raster(camada):
