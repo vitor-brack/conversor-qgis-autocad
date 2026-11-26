@@ -1,14 +1,14 @@
-===========================================================
+﻿===========================================================
   CONVERSOR QGIS <-> AUTOCAD
 ===========================================================
 
 Para abrir: clique duas vezes em  ConversorGeo.exe
 
-Nao precisa instalar nada. Nao precisa ter o QGIS nem o
+Não precisa instalar nada. Não precisa ter o QGIS nem o
 AutoCAD aberto para usar.
 
-Dica: clique com o botao direito no ConversorGeo.exe e
-escolha "Enviar para > Area de trabalho" para criar um
+Dica: clique com o botão direito no ConversorGeo.exe e
+escolha "Enviar para > Área de trabalho" para criar um
 atalho.
 
 
@@ -20,113 +20,113 @@ atalho.
 
 2. Escolha o desenho (.dxf ou .dwg).
 
-3. Informe em que coordenadas o desenho esta. Esta e a unica
-   parte que exige atencao: o desenho do AutoCAD NAO guarda
-   essa informacao, entao alguem precisa dizer.
+3. Informe em que coordenadas o desenho está. Esta é a única
+   parte que exige atenção: o desenho do AutoCAD NÃO guarda
+   essa informação, então alguém precisa dizer.
 
    Se o desenho foi feito por este mesmo programa, ele
    descobre sozinho e avisa na tela.
 
-   Escolher aqui NAO converte o desenho para outro sistema:
-   so diz ao QGIS em que sistema ele ja esta. O arquivo sai
+   Escolher aqui NÃO converte o desenho para outro sistema:
+   só diz ao QGIS em que sistema ele já está. O arquivo sai
    com as mesmas coordenadas. Se o sistema estiver errado, o
    desenho aparece no lugar errado do mapa.
 
-4. Escolha o formato de saida (GeoPackage e o mais pratico).
+4. Escolha o formato de saída (GeoPackage é o mais prático).
 
-   Em "Onde salvar", o programa ja sugere a pasta do proprio
+   Em "Onde salvar", o programa já sugere a pasta do próprio
    desenho e o nome "<desenho>_qgis". Para trocar o nome, clique
-   no campo "Nome" e digite (so o nome, sem caminho e sem
+   no campo "Nome" e digite (só o nome, sem caminho e sem
    ".gpkg"). Para salvar em outra pasta, use "Escolher pasta...".
-   Se ja existir um arquivo com esse nome, o programa avisa
-   embaixo do campo que ele sera substituido.
+   Se já existir um arquivo com esse nome, o programa avisa
+   embaixo do campo que ele será substituído.
 
    Depois, clique em CONVERTER PARA QGIS.
 
-5. No fim o programa avisa qual arquivo abrir. De dois cliques
+5. No fim o programa avisa qual arquivo abrir. Dê dois cliques
    no arquivo .qgs que ele criou.
 
 
 O QUE VEM JUNTO NO .QGS:
 
-  - As cores sao as mesmas do AutoCAD, entidade por entidade.
+  - As cores são as mesmas do AutoCAD, entidade por entidade.
     Se dentro de uma camada havia linhas de cores diferentes,
     elas continuam diferentes no QGIS - cada cor aparece como
     um item separado na legenda.
 
-  - Areas pintadas (hachuras) chegam pintadas, com a cor do
-    desenho. Hachuras com textura (cruzes, tracos, listras,
+  - Áreas pintadas (hachuras) chegam pintadas, com a cor do
+    desenho. Hachuras com textura (cruzes, traços, listras,
     cascalho) chegam com a MESMA textura do AutoCAD, desenhada
-    traco por traco - inclusive nas amostras da legenda - e
-    so dentro da area hachurada (as partes brancas, como a
-    escavacao de um perfil, continuam brancas).
+    traço por traço - inclusive nas amostras da legenda - e
+    só dentro da área hachurada (as partes brancas, como a
+    escavação de um perfil, continuam brancas).
 
-  - Cotas chegam com as pontas de seta. Os pontos de definicao
+  - Cotas chegam com as pontas de seta. Os pontos de definição
     das cotas (que o AutoCAD usa para montar a cota e nunca
     imprime) ficam de fora.
 
   - Os textos ficam no mesmo lugar, tamanho, cor, alinhamento
-    e inclinacao do AutoCAD. Textos que eram centralizados
+    e inclinação do AutoCAD. Textos que eram centralizados
     numa tabela continuam centralizados. Textos com partes de
     cores ou letras diferentes (como o logo Geosana, com "Geo"
     azul e "sana" verde) chegam com essas cores e letras.
 
-  - Textos de varias linhas (como o titulo do carimbo) quebram
-    nas mesmas palavras e com o mesmo espacamento do AutoCAD.
+  - Textos de várias linhas (como o título do carimbo) quebram
+    nas mesmas palavras e com o mesmo espaçamento do AutoCAD.
     Na tabela de atributos do QGIS, cada linha aparece como um
-    item separado - e isso que garante o espacamento certo.
+    item separado - é isso que garante o espaçamento certo.
 
   - As imagens do desenho (logotipos, fotos, tabelas coladas)
-    tambem vem, no lugar certo. Veja a secao sobre imagens
+    também vêm, no lugar certo. Veja a seção sobre imagens
     abaixo.
 
-  - O mapa ja abre enquadrado na area do desenho.
+  - O mapa já abre enquadrado na área do desenho.
 
   - No painel de camadas, cada camada do AutoCAD pode aparecer
-    em ate cinco partes: _Texto, _Point (pontos), _LineString
+    em até cinco partes: _Texto, _Point (pontos), _LineString
     (linhas), _Textura (a textura das hachuras) e _Hachura
-    (areas pintadas). Da para ligar e desligar cada uma
+    (áreas pintadas). Dá para ligar e desligar cada uma
     separadamente.
 
   - Camadas que estavam DESLIGADAS ou CONGELADAS no AutoCAD
-    vem para o QGIS desmarcadas: os dados estao la, mas so
-    aparecem se voce marcar a caixinha da camada.
+    vêm para o QGIS desmarcadas: os dados estão lá, mas só
+    aparecem se você marcar a caixinha da camada.
 
-  - A folha de impressao (a aba Layout do AutoCAD: moldura e
-    carimbo da folha) nao vem - so o desenho da aba Model.
+  - A folha de impressão (a aba Layout do AutoCAD: moldura e
+    carimbo da folha) não vem - só o desenho da aba Model.
 
-  - Os pontos saem com o mesmo simbolo do AutoCAD (circulo,
+  - Os pontos saem com o mesmo símbolo do AutoCAD (círculo,
     cruz, quadrado...), no mesmo tamanho.
 
   - Onde duas linhas de cores diferentes passam uma por cima
     da outra, aparece a mesma que aparece no AutoCAD.
 
-  - Textos de letra estreita no AutoCAD (como os rotulos do
-    carimbo do INCRA e o quadro de situacoes cartograficas)
-    saem um pouco menores, para caber no mesmo espaco do
+  - Textos de letra estreita no AutoCAD (como os rótulos do
+    carimbo do INCRA e o quadro de situações cartográficas)
+    saem um pouco menores, para caber no mesmo espaço do
     AutoCAD sem encostar no texto ao lado. Quando um texto
-    tem um espaco no meio para outro texto (o 45 de
+    tem um espaço no meio para outro texto (o 45 de
     "MERIDIANO CENTRAL 45 graus WGr"), cada parte fica no
-    lugar em que esta no AutoCAD.
+    lugar em que está no AutoCAD.
 
-DICA UTIL: na legenda do QGIS, cada cor aparece pelo seu
-codigo (por exemplo #a52a2a). Clique duas vezes nesse texto
-para trocar por um nome de verdade, como "Calcario" ou
+DICA ÚTIL: na legenda do QGIS, cada cor aparece pelo seu
+código (por exemplo #a52a2a). Clique duas vezes nesse texto
+para trocar por um nome de verdade, como "Calcário" ou
 "Arenito". O nome fica salvo no projeto.
 
-Se quiser mudar uma cor, clique com o botao direito na camada
+Se quiser mudar uma cor, clique com o botão direito na camada
 e escolha Propriedades > Simbologia.
 
 SOBRE A LETRA: o QGIS usa a mesma letra do AutoCAD quando o
-texto escolhe uma (como o logo e o carimbo) e ela esta
+texto escolhe uma (como o logo e o carimbo) e ela está
 instalada no computador. Nos outros textos, usa Arial. O
 AutoCAD costuma usar letras um pouco mais estreitas ou mais
-largas, entao um texto pode ficar um pouquinho mais comprido ou
+largas, então um texto pode ficar um pouquinho mais comprido ou
 mais curto - mas sempre no lugar certo e com o alinhamento
 certo. Letras "esticadas" ou "comprimidas" no AutoCAD (estilos
-de texto largos ou estreitos, como no carimbo e nos titulos das
+de texto largos ou estreitos, como no carimbo e nos títulos das
 plantas) aparecem no QGIS na largura normal da letra: o QGIS
-nao sabe esticar nem comprimir letra - tentando, ele afasta ou
+não sabe esticar nem comprimir letra - tentando, ele afasta ou
 encavala as letras.
 
 
@@ -144,216 +144,216 @@ O AutoCAD tem dois tipos de imagem:
     0_Figura); em Shapefile e GeoJSON vira um arquivo .png na
     pasta dos dados. Ela vai junto com a camada dela: na
     lista de "Escolher as camadas", marque a camada em que a
-    tabela esta (no desenho do Carlos Sost, a camada 0).
+    tabela está (no desenho do Carlos Sost, a camada 0).
 
   * IMAGEM LIGADA A UM ARQUIVO (um logotipo, uma foto): o
-    desenho guarda so o endereco do arquivo (por exemplo
+    desenho guarda só o endereço do arquivo (por exemplo
     E:\PROJETO\logo.jpg). O programa procura a imagem nesse
-    endereco e, se nao achar, pelo nome na mesma pasta do
-    desenho. Se aparecer a mensagem "Imagem NAO encontrada",
-    e so copiar o arquivo da imagem para a mesma pasta do
+    endereço e, se não achar, pelo nome na mesma pasta do
+    desenho. Se aparecer a mensagem "Imagem NÃO encontrada",
+    é só copiar o arquivo da imagem para a mesma pasta do
     desenho e converter de novo.
 
 Ao abrir o .gpkg arrastando para o QGIS, a imagem colada
 aparece na lista de camadas para escolher, junto com as
-outras. Pelo menu "Adicionar Camada Vetorial" ela NAO
-aparece: esse menu so mostra linhas, pontos, areas e textos.
+outras. Pelo menu "Adicionar Camada Vetorial" ela NÃO
+aparece: esse menu só mostra linhas, pontos, áreas e textos.
 
-Para nao trazer imagens, desmarque a opcao "Trazer as imagens
+Para não trazer imagens, desmarque a opção "Trazer as imagens
 do desenho" na tela.
 
 
 -----------------------------------------------------------
-  AREAS (POLILINHAS FECHADAS)
+  ÁREAS (POLILINHAS FECHADAS)
 -----------------------------------------------------------
 
-A opcao "Transformar polilinhas fechadas em areas" fica
-DESMARCADA por padrao.
+A opção "Transformar polilinhas fechadas em áreas" fica
+DESMARCADA por padrão.
 
-  - Desmarcada: toda polilinha chega como linha. E o certo
-    para curvas de nivel, que muitas vezes se fecham em volta
+  - Desmarcada: toda polilinha chega como linha. É o certo
+    para curvas de nível, que muitas vezes se fecham em volta
     de um morro.
 
-  - Marcada: polilinhas fechadas viram areas, e o QGIS passa
-    a conseguir calcular a area delas. Use quando o desenho
-    tiver limites de terreno, lotes, corpos geologicos.
+  - Marcada: polilinhas fechadas viram áreas, e o QGIS passa
+    a conseguir calcular a área delas. Use quando o desenho
+    tiver limites de terreno, lotes, corpos geológicos.
 
 
 -----------------------------------------------------------
   ESCOLHER AS CAMADAS (COM O DESENHO AO LADO)
 -----------------------------------------------------------
 
-Na aba "AutoCAD -> QGIS", marque "Escolher as camadas que vao
-para a conversao". A janela se alarga e, ao lado, aparecem a
+Na aba "AutoCAD -> QGIS", marque "Escolher as camadas que vão
+para a conversão". A janela se alarga e, ao lado, aparecem a
 lista de camadas e o desenho.
 
-  - O DESENHO aparece com fundo branco, como no AutoCAD, so com
-    o que o AutoCAD mostra: as camadas DESLIGADAS nao aparecem,
+  - O DESENHO aparece com fundo branco, como no AutoCAD, só com
+    o que o AutoCAD mostra: as camadas DESLIGADAS não aparecem,
     nem no desenho nem na lista. Se precisar delas (muita gente
-    deixa as curvas de nivel desligadas), marque a caixinha
+    deixa as curvas de nível desligadas), marque a caixinha
     "Mostrar camadas desligadas no AutoCAD".
-    As cores sao as do desenho, linha por linha, sem alterar:
+    As cores são as do desenho, linha por linha, sem alterar:
     uma linha azul continua azul. O branco do AutoCAD aparece
-    preto, como no AutoCAD de fundo branco. As hachuras vem
-    pintadas (um lago e azul por dentro) ou com o padrao delas,
-    e as linhas tracejadas vem tracejadas; de longe, quando o
-    tracejado ou o padrao da hachura fica miudo demais, a linha
+    preto, como no AutoCAD de fundo branco. As hachuras vêm
+    pintadas (um lago é azul por dentro) ou com o padrão delas,
+    e as linhas tracejadas vêm tracejadas; de longe, quando o
+    tracejado ou o padrão da hachura fica miúdo demais, a linha
     aparece cheia e a hachura pintada, como no AutoCAD.
     Os TEXTOS aparecem com a letra, a cor e o tamanho do AutoCAD
-    (o carimbo, o logo, os rotulos, as coordenadas). Fontes que
-    so o AutoCAD tem saem na mais parecida do Windows: a swissc
+    (o carimbo, o logo, os rótulos, as coordenadas). Fontes que
+    só o AutoCAD tem saem na mais parecida do Windows: a swissc
     (estreita) em Arial Narrow; as .shx, como a romans, em Arial.
-    De longe, quando o texto fica miudo demais para ler, ele vira
+    De longe, quando o texto fica miúdo demais para ler, ele vira
     uma barra cheia do tamanho dele, como o AutoCAD 2007 faz (o
     carimbo na vista inteira, por exemplo); chegando perto, as
-    letras voltam. A TABELA colada no desenho (a das areas) aparece
+    letras voltam. A TABELA colada no desenho (a das áreas) aparece
     no lugar dela, por cima de tudo, como no AutoCAD 2007.
-    O que fica por cima de que e igual ao AutoCAD: o que ele
+    O que fica por cima de que é igual ao AutoCAD: o que ele
     desenha depois cobre o que veio antes (inclusive o "trazer
-    para a frente"). Rotulos de blocos que o AutoCAD esconde (os
-    milhares de numeros dos pontos do levantamento, em camadas
-    congeladas) tambem ficam escondidos aqui.
+    para a frente"). Rótulos de blocos que o AutoCAD esconde (os
+    milhares de números dos pontos do levantamento, em camadas
+    congeladas) também ficam escondidos aqui.
     A roda do mouse da zoom, arrastar move, e "Ver tudo" volta a
     vista inteira.
-    Com o desenho aberto, o quadro "O que aconteceu" fica a
-    esquerda, embaixo do botao CONVERTER (e nao mais embaixo de
+    Com o desenho aberto, o quadro "O que aconteceu" fica à
+    esquerda, embaixo do botão CONVERTER (e não mais embaixo de
     tudo): assim o desenho tem a altura toda da janela. Na outra
     aba, ou desmarcando "Escolher as camadas", ele volta para baixo.
     Para ver o desenho GRANDE, clique em "Ampliar desenho": a
     janela maximiza e o desenho ocupa tudo (os passos, a lista
-    e o quadro "O que aconteceu" saem da frente). Da para dar
+    e o quadro "O que aconteceu" saem da frente). Dá para dar
     zoom e clicar nas linhas do mesmo jeito. "Voltar ao normal"
     ou a tecla Esc traz tudo de volta.
 
-  - A LISTA tem uma linha por camada, em tres colunas:
-      * "Camada": a caixinha, as cores da camada (ate tres
+  - A LISTA tem uma linha por camada, em três colunas:
+      * "Camada": a caixinha, as cores da camada (até três
         quadradinhos, a cor mais usada primeiro) e o nome. Camada
         com mais de uma cor tem uma SETINHA: clicando nela, abrem
         as cores da camada, cada uma com o nome ("azul", "marrom",
-        "cinza-claro") e a sua caixinha. O nome da cor e
-        aproximado, so para ajudar a achar; quando duas cores da
-        mesma camada ganham o mesmo nome, o codigo vem junto, como
+        "cinza-claro") e a sua caixinha. O nome da cor é
+        aproximado, só para ajudar a achar; quando duas cores da
+        mesma camada ganham o mesmo nome, o código vem junto, como
         "azul (#007fff)".
       * "O que tem": o que a camada (ou a cor) tem, contado como se
-        ve no desenho: "3 linhas . 8 textos" (ver "O QUE E UMA
+        vê no desenho: "3 linhas . 8 textos" (ver "O QUE É UMA
         LINHA", mais abaixo). Camada desligada no AutoCAD diz
         "desligada".
-      * "Na conversao": o que vai dela. "tudo"; "so azul" (algumas
+      * "Na conversão": o que vai dela. "tudo"; "só azul" (algumas
         cores); "1 linha escolhida" (clicada no desenho); ou nada.
     O campo "Buscar camada" filtra pelo nome. A janela abre SEM
     NENHUMA camada marcada, e embaixo da lista uma frase resume o
-    que vai para a conversao.
+    que vai para a conversão.
 
-  - A CAIXINHA de cada linha tem tres jeitos:
-      vazia ........... nada dela vai para a conversao;
-      com um traco .... vai uma parte (algumas cores, ou linhas e
+  - A CAIXINHA de cada linha tem três jeitos:
+      vazia ........... nada dela vai para a conversão;
+      com um traço .... vai uma parte (algumas cores, ou linhas e
                         textos clicados no desenho);
       com o visto ..... vai tudo.
     Clicar na caixinha (ou nos quadradinhos de cor ao lado) marca e
-    desmarca; a barra de espaco faz o mesmo na linha escolhida.
-    Caixinha com o traco, clicada, passa a levar tudo. Desmarcar
-    tira tambem as linhas e textos que tinham sido clicados ali.
+    desmarca; a barra de espaço faz o mesmo na linha escolhida.
+    Caixinha com o traço, clicada, passa a levar tudo. Desmarcar
+    tira também as linhas e textos que tinham sido clicados ali.
 
-  - ESCOLHER O QUE VAI PARA A CONVERSAO tem varios jeitos, que se
+  - ESCOLHER O QUE VAI PARA A CONVERSÃO tem vários jeitos, que se
     somam:
       * A CAMADA INTEIRA: marque a caixinha dela na lista. O que
         vai fica em NEGRITO, na lista e no desenho (no desenho, na
-        mesma cor). O botao "Marcar todas" marca de uma vez tudo o
-        que a lista mostra, inclusive as camadas que so tem
-        textos (ou so hachuras).
-      * SO ALGUMAS CORES DE UMA CAMADA: abra a camada pela setinha
+        mesma cor). O botão "Marcar todas" marca de uma vez tudo o
+        que a lista mostra, inclusive as camadas que só têm
+        textos (ou só hachuras).
+      * SÓ ALGUMAS CORES DE UMA CAMADA: abra a camada pela setinha
         e marque as cores que quer. Muitos desenhos jogam quase
-        tudo numa camada so (a camada "0") e diferenciam as coisas
+        tudo numa camada só (a camada "0") e diferenciam as coisas
         pela cor.
-      * UMA LINHA SO: clique nela no desenho. Ela fica em negrito,
+      * UMA LINHA SÓ: clique nela no desenho. Ela fica em negrito,
         na cor de sempre, e o resto da camada continua fino.
-      * UM TEXTO SO: clique em cima dele no desenho. As letras ficam
+      * UM TEXTO SÓ: clique em cima dele no desenho. As letras ficam
         em negrito (de longe, a barra dele fica mais grossa). Um
-        texto de varias linhas (MTEXT) vem inteiro.
-    Um clique comum escolhe so aquela linha ou texto (e desmarca o
-    que estava marcado); segurando CTRL, o clique soma as ja
-    escolhidas (e, se ja estava escolhido, tira). Clicar num
-    lugar vazio nao mexe em nada. Clicando em cima de um texto, vale
+        texto de várias linhas (MTEXT) vem inteiro.
+    Um clique comum escolhe só aquela linha ou texto (e desmarca o
+    que estava marcado); segurando CTRL, o clique soma as já
+    escolhidas (e, se já estava escolhido, tira). Clicar num
+    lugar vazio não mexe em nada. Clicando em cima de um texto, vale
     o texto; para escolher uma linha que passa por ele, clique na
     linha fora do texto. Na lista, a caixinha da camada fica com o
-    traco e a coluna "Na conversao" diz "1 linha escolhida" ou
+    traço e a coluna "Na conversão" diz "1 linha escolhida" ou
     "1 texto escolhido"; embaixo da lista aparecem a camada, a cor
-    e o texto clicado. O botao "Desmarcar todas" tira tudo. Clicar
-    no nome de uma camada (ou de uma cor) na lista so a destaca no
+    e o texto clicado. O botão "Desmarcar todas" tira tudo. Clicar
+    no nome de uma camada (ou de uma cor) na lista só a destaca no
     desenho, com um contorno azul claro, sem marcar nem trocar a
     cor.
 
-    O QUE E "UMA LINHA": no AutoCAD cada trecho reto e uma peca
-    (um quadrado feito com quatro tracinhos tem quatro pecas), mas
-    para quem olha e uma linha so. O programa junta as pecas que se
+    O QUE É "UMA LINHA": no AutoCAD cada trecho reto é uma peça
+    (um quadrado feito com quatro tracinhos tem quatro peças), mas
+    para quem olha é uma linha só. O programa junta as peças que se
     encostam PELAS PONTAS, na mesma camada e na mesma cor. Uma linha
-    fechada (um lote, um circulo) ja e uma linha so e nao se junta a
-    nenhuma outra. Pecas que so se tocam no meio de outra (um "T")
-    NAO se juntam: use CTRL + clique para somar cada uma. Pontos e
-    areas contam um por um. A lista conta as linhas desse jeito, como
-    se enxergam no desenho (o quadrado de quatro tracinhos e 1
+    fechada (um lote, um círculo) já é uma linha só e não se junta a
+    nenhuma outra. Peças que só se tocam no meio de outra (um "T")
+    NÃO se juntam: use CTRL + clique para somar cada uma. Pontos e
+    áreas contam um por um. A lista conta as linhas desse jeito, como
+    se enxergam no desenho (o quadrado de quatro tracinhos é 1
     linha). Ao clicar, o texto abaixo da lista diz a camada, a cor e
-    de quantas pecas e a linha.
+    de quantas peças é a linha.
 
     A COR DOS TEXTOS: um texto pode ter a cor escrita nele mesmo,
-    diferente da cor da camada (o endereco do carimbo, azul numa
-    camada laranja). A lista, o desenho e a conversao usam a cor
-    que aparece. Se as palavras do texto tem cores diferentes, vale
+    diferente da cor da camada (o endereço do carimbo, azul numa
+    camada laranja). A lista, o desenho e a conversão usam a cor
+    que aparece. Se as palavras do texto têm cores diferentes, vale
     a cor da camada.
 
-UMA CAMADA DO QGIS PARA CADA COR: marcando "Na saida, uma camada
+UMA CAMADA DO QGIS PARA CADA COR: marcando "Na saída, uma camada
 do QGIS para cada cor", cada camada de mais de uma cor que vai
-para a conversao sai dividida, uma camada de saida por cor, de
-nome "<camada>_<cor>" (por exemplo 0_ciano). As cores basicas do
-AutoCAD vao pelo nome (vermelho, amarelo, verde, ciano, azul,
-magenta...); as outras, pelo codigo (por exemplo 0_a55252), que
+para a conversão sai dividida, uma camada de saída por cor, de
+nome "<camada>_<cor>" (por exemplo 0_ciano). As cores básicas do
+AutoCAD vão pelo nome (vermelho, amarelo, verde, ciano, azul,
+magenta...); as outras, pelo código (por exemplo 0_a55252), que
 nunca se repete. O campo "Layer" da tabela continua dizendo a
-camada original. Camadas que tem uma cor so mantem o nome de
-sempre. A opcao so muda a saida: a lista e o que esta marcado
-continuam iguais. O programa nao sabe o que cada cor significa
-(se o azul e rio, por exemplo): isso quem desenhou ou usa o
-desenho e que sabe.
+camada original. Camadas que têm uma cor só mantém o nome de
+sempre. A opção só muda a saída: a lista é o que está marcado
+continuam iguais. O programa não sabe o que cada cor significa
+(se o azul é rio, por exemplo): isso quem desenhou ou usa o
+desenho é que sabe.
 
-Marque so as camadas que quer e clique em CONVERTER: o resultado
+Marque só as camadas que quer e clique em CONVERTER: o resultado
 leva apenas elas. O clique no desenho escolhe pontos, linhas,
-areas e textos; as hachuras e a tabela aparecem, mas nao sao
-escolhidas pelo clique (as hachuras vao na conversao se a camada
-estiver marcada). Se "Nao levar textos nem hachuras" estiver
+áreas e textos; as hachuras e a tabela aparecem, mas não são
+escolhidas pelo clique (as hachuras vão na conversão se a camada
+estiver marcada). Se "Não levar textos nem hachuras" estiver
 marcada, o texto escolhido fica de fora, e o quadro "O que
 aconteceu" avisa. Com muitas linhas juntas,
-como curvas de nivel, o negrito de longe vira uma mancha: aproxime
+como curvas de nível, o negrito de longe vira uma mancha: aproxime
 com a roda do mouse para ver as linhas separadas.
 
-FEICOES LONGE DO DESENHO: se o programa achar feicoes a centenas
-de quilometros do resto (como linhas perdidas na coordenada 0,0,
-que cairiam no meio do oceano), ele avisa embaixo da previa e,
-por padrao, deixa elas de fora. Desmarque "Deixar de fora essas
-feicoes" para levar tudo.
+FEIÇÕES LONGE DO DESENHO: se o programa achar feições a centenas
+de quilômetros do resto (como linhas perdidas na coordenada 0,0,
+que cairiam no meio do oceano), ele avisa embaixo da prévia e,
+por padrão, deixa elas de fora. Desmarque "Deixar de fora essas
+feições" para levar tudo.
 
 
 -----------------------------------------------------------
   ENTREGAR EM POUCOS ARQUIVOS (UM POR TIPO)
 -----------------------------------------------------------
 
-Quando precisam de um arquivo so de pontos, um so de linhas e um
-so de areas (em vez de um por camada do AutoCAD):
+Quando precisam de um arquivo só de pontos, um só de linhas e um
+só de áreas (em vez de um por camada do AutoCAD):
 
-  1. Formato de saida: Shapefile.
+  1. Formato de saída: Shapefile.
   2. DESMARQUE "Criar uma camada do QGIS para cada camada do
      AutoCAD". Todas as camadas escolhidas se juntam, por tipo.
-  3. Marque "Nao levar textos nem hachuras". Sem isso, eles vem
+  3. Marque "Não levar textos nem hachuras". Sem isso, eles vêm
      como arquivos a mais (Texto, Hachura).
   4. Se quiser, escolha as camadas que entram (veja acima).
 
 Saem LineString.shp (as linhas), Point.shp (os pontos) e
-Polygon.shp (as areas), cada um com os arquivos .shx, .dbf, .prj
+Polygon.shp (as áreas), cada um com os arquivos .shx, .dbf, .prj
 e .cpg. O campo "Layer" da tabela diz de que camada do AutoCAD
-veio cada linha, ponto ou area (e "cor_cad" diz a cor).
+veio cada linha, ponto ou área (e "cor_cad" diz a cor).
 
-As camadas que estavam desligadas no AutoCAD, se voce as
-escolheu, entram nos mesmos arquivos. O programa NAO transforma
-polilinhas fechadas em areas por conta propria: se precisar,
-use "Transformar polilinhas fechadas em areas".
+As camadas que estavam desligadas no AutoCAD, se você as
+escolheu, entram nos mesmos arquivos. O programa NÃO transforma
+polilinhas fechadas em áreas por conta própria: se precisar,
+use "Transformar polilinhas fechadas em áreas".
 
 
 -----------------------------------------------------------
@@ -363,68 +363,68 @@ use "Transformar polilinhas fechadas em areas".
 1. Abra a aba "QGIS -> AutoCAD".
 
 2. Clique em "Adicionar..." e escolha o arquivo do QGIS
-   (.shp, .gpkg, .geojson). Pode adicionar varios: todos
+   (.shp, .gpkg, .geojson). Pode adicionar vários: todos
    entram no mesmo desenho, cada um numa camada.
 
-3. Confira o sistema de coordenadas. O normal e deixar
-   SIRGAS 2000 / UTM 22S, que ja vem marcado.
+3. Confira o sistema de coordenadas. O normal é deixar
+   SIRGAS 2000 / UTM 22S, que já vem marcado.
 
-4. Duas opcoes que costumam ser uteis:
+4. Duas opções que costumam ser úteis:
 
    "Nome da camada vem de" - escolha uma coluna da tabela
    (por exemplo "litologia") e o desenho sai com uma camada
    do AutoCAD para cada valor diferente dela.
 
    "Escrever texto do campo" - escolha uma coluna (por
-   exemplo "codigo") e o programa escreve esse texto ao lado
+   exemplo "código") e o programa escreve esse texto ao lado
    de cada ponto no desenho.
 
 5. Escolha onde salvar e clique em CONVERTER PARA AUTOCAD.
 
 
-As areas do QGIS chegam no AutoCAD como contorno (linha
-fechada), e nao como uma mancha pintada que esconderia o que
-esta embaixo.
+As áreas do QGIS chegam no AutoCAD como contorno (linha
+fechada), e não como uma mancha pintada que esconderia o que
+está embaixo.
 
-IMPORTANTE: o desenho do AutoCAD nao tem tabela de atributos.
-Ele so guarda as linhas e o nome das camadas. Por isso o
+IMPORTANTE: o desenho do AutoCAD não tem tabela de atributos.
+Ele só guarda as linhas e o nome das camadas. Por isso o
 programa salva um arquivo .csv junto, com a tabela completa.
 Esse .csv abre no Excel.
 
 
 -----------------------------------------------------------
-  IMPORTANTE: .QGS E .QGZ NAO SAO ARQUIVOS DE DADOS
+  IMPORTANTE: .QGS E .QGZ NÃO SÃO ARQUIVOS DE DADOS
 -----------------------------------------------------------
 
-Essa confusao e comum, porque o nome parece indicar o
-contrario.
+Essa confusão é comum, porque o nome parece indicar o
+contrário.
 
   .gpkg / .shp / .geojson  = os DADOS (as linhas, os pontos)
-  .qgs / .qgz              = o PROJETO (quais camadas estao
+  .qgs / .qgz              = o PROJETO (quais camadas estão
                              abertas, as cores, o layout)
 
-O projeto nao contem os dados dentro dele. Ele so aponta para
+O projeto não contém os dados dentro dele. Ele só aponta para
 os arquivos de dados, que ficam ao lado. Por isso o menu
-"Projeto > Abrir Projeto" nao enxerga um .gpkg: aquele menu so
+"Projeto > Abrir Projeto" não enxerga um .gpkg: aquele menu só
 aceita projeto.
 
-O programa cria os dois de uma vez, entao e so dar dois
+O programa cria os dois de uma vez, então é só dar dois
 cliques no .qgs.
 
-Se algum dia quiser abrir so os dados, sem projeto, arraste o
+Se algum dia quiser abrir só os dados, sem projeto, arraste o
 arquivo para dentro do QGIS: vem tudo, inclusive as imagens.
 O QGIS mostra a lista das camadas do arquivo; escolha todas,
 inclusive a "_Figura", se houver. O menu
    Camada > Adicionar Camada > Adicionar Camada Vetorial
-tambem abre os dados, mas NAO traz as imagens.
-As cores do AutoCAD vem junto do mesmo jeito: o .gpkg guarda
+também abre os dados, mas NÃO traz as imagens.
+As cores do AutoCAD vêm junto do mesmo jeito: o .gpkg guarda
 as cores dentro dele, e cada .shp ou .geojson ganha ao lado um
 arquivo .qml com o mesmo nome, que leva as cores. O QGIS aplica
 as cores sozinho ao abrir. Se copiar um .shp para outro lugar,
 leve o .qml junto.
 
 Uma coisa a lembrar: o .qgs e os dados andam juntos. Se copiar
-para um pendrive, leve a pasta inteira, nao so o .qgs.
+para um pendrive, leve a pasta inteira, não só o .qgs.
 
 
 -----------------------------------------------------------
@@ -433,40 +433,40 @@ para um pendrive, leve a pasta inteira, nao so o .qgs.
 
 O programa trabalha com .dxf sem precisar de mais nada.
 
-Para arquivos .dwg e preciso instalar o ODA File Converter,
-que e gratuito:
+Para arquivos .dwg é preciso instalar o ODA File Converter,
+que é gratuito:
 
    https://www.opendesign.com/guestfiles/oda_file_converter
 
-Baixe a versao "Windows 8-11 64-bit", instale, e o programa
+Baixe a versão "Windows 8-11 64-bit", instale, e o programa
 passa a aceitar .dwg sozinho.
 
-Se preferir nao instalar: no AutoCAD, use
+Se preferir não instalar: no AutoCAD, use
 Arquivo > Salvar Como e escolha
 "AutoCAD 2004/LT2004 DXF (*.dxf)".
 
 
 -----------------------------------------------------------
-  OBSERVACOES
+  OBSERVAÇÕES
 -----------------------------------------------------------
 
-- Indo do QGIS para o AutoCAD, os acentos sao trocados por
+- Indo do QGIS para o AutoCAD, os acentos são trocados por
   letras simples nos nomes de camada (Secao no lugar de
-  Se..o). Isso e de proposito: garante que o texto apareca
+  Seção). Isso é de propósito: garante que o texto apareça
   igual nos dois programas. Os acentos originais ficam
   preservados no arquivo .csv. Se preferir manter os acentos
-  no desenho, desmarque a opcao na tela.
+  no desenho, desmarque a opção na tela.
 
-  No sentido contrario (AutoCAD para QGIS) os acentos do
-  desenho sao preservados normalmente.
+  No sentido contrário (AutoCAD para QGIS) os acentos do
+  desenho são preservados normalmente.
 
-- Angulos e simbolos como 45 graus, +/- e diametro sao
+- Ângulos e símbolos como 45 graus, +/- e diâmetro são
   preservados nos dois sentidos.
 
-- As cotas (valores de altura) das curvas de nivel sao
-  preservadas nos dois sentidos, em qualquer formato de saida
-  (GeoPackage, Shapefile ou GeoJSON) e tambem nas curvas
+- As cotas (valores de altura) das curvas de nível são
+  preservadas nos dois sentidos, em qualquer formato de saída
+  (GeoPackage, Shapefile ou GeoJSON) e também nas curvas
   desenhadas como spline.
 
-- O desenho e gravado no formato AutoCAD 2004, que o
+- O desenho é gravado no formato AutoCAD 2004, que o
   AutoCAD 2007 abre normalmente.
