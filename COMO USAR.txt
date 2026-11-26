@@ -214,7 +214,9 @@ lista de camadas e o desenho.
     somam:
       * A CAMADA INTEIRA: marque a caixinha dela na lista. A camada
         marcada fica em NEGRITO, na mesma cor, na lista e no
-        desenho.
+        desenho. O botao "Marcar todas" marca de uma vez tudo o
+        que a lista mostra, inclusive as camadas que so tem
+        textos (ou so hachuras).
       * UMA LINHA SO: clique nela no desenho. Ela fica em negrito,
         na cor de sempre, e o resto da camada continua fino.
       * UM TEXTO SO: clique em cima dele no desenho. As letras ficam
