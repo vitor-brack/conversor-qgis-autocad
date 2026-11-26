@@ -71,9 +71,9 @@ O QUE VEM JUNTO NO .QGS:
     Na tabela de atributos do QGIS, cada linha aparece como um
     item separado - e isso que garante o espacamento certo.
 
-  - As imagens do desenho (logotipos, fotos) tambem vem, no
-    lugar certo - desde que o arquivo da imagem esteja na
-    mesma pasta do desenho. Veja a secao sobre imagens abaixo.
+  - As imagens do desenho (logotipos, fotos, tabelas coladas)
+    tambem vem, no lugar certo. Veja a secao sobre imagens
+    abaixo.
 
   - O mapa ja abre enquadrado na area do desenho.
 
@@ -129,16 +129,30 @@ encavala as letras.
   IMAGENS DO DESENHO
 -----------------------------------------------------------
 
-O arquivo do AutoCAD nao guarda a imagem dentro dele: guarda
-so o endereco do arquivo (por exemplo E:\PROJETO\logo.jpg).
+O AutoCAD tem dois tipos de imagem:
 
-O programa procura a imagem nesse endereco e, se nao achar,
-procura pelo nome na mesma pasta do desenho. Quando acha, ela
-aparece no QGIS no lugar certo.
+  * IMAGEM COLADA (por exemplo uma tabela copiada do Excel e
+    colada no desenho): ela fica guardada DENTRO do desenho.
+    O programa a leva junto, no mesmo lugar do mapa. No
+    GeoPackage ela vai para dentro do .gpkg, como uma camada
+    de imagem chamada "<camada>_Figura" (por exemplo
+    0_Figura); em Shapefile e GeoJSON vira um arquivo .png na
+    pasta dos dados. Ela vai junto com a camada dela: na
+    lista de "Escolher as camadas", marque a camada em que a
+    tabela esta (no desenho do Carlos Sost, a camada 0).
 
-Se aparecer a mensagem "Imagem NAO encontrada", e so copiar o
-arquivo da imagem para a mesma pasta do desenho e converter
-de novo.
+  * IMAGEM LIGADA A UM ARQUIVO (um logotipo, uma foto): o
+    desenho guarda so o endereco do arquivo (por exemplo
+    E:\PROJETO\logo.jpg). O programa procura a imagem nesse
+    endereco e, se nao achar, pelo nome na mesma pasta do
+    desenho. Se aparecer a mensagem "Imagem NAO encontrada",
+    e so copiar o arquivo da imagem para a mesma pasta do
+    desenho e converter de novo.
+
+Ao abrir o .gpkg arrastando para o QGIS, a imagem colada
+aparece na lista de camadas para escolher, junto com as
+outras. Pelo menu "Adicionar Camada Vetorial" ela NAO
+aparece: esse menu so mostra linhas, pontos, areas e textos.
 
 Para nao trazer imagens, desmarque a opcao "Trazer as imagens
 do desenho" na tela.
@@ -357,9 +371,12 @@ aceita projeto.
 O programa cria os dois de uma vez, entao e so dar dois
 cliques no .qgs.
 
-Se algum dia quiser abrir so os dados, sem projeto:
+Se algum dia quiser abrir so os dados, sem projeto, arraste o
+arquivo para dentro do QGIS: vem tudo, inclusive as imagens.
+O QGIS mostra a lista das camadas do arquivo; escolha todas,
+inclusive a "_Figura", se houver. O menu
    Camada > Adicionar Camada > Adicionar Camada Vetorial
-ou simplesmente arraste o arquivo para dentro do QGIS.
+tambem abre os dados, mas NAO traz as imagens.
 As cores do AutoCAD vem junto do mesmo jeito: o .gpkg guarda
 as cores dentro dele, e cada .shp ou .geojson ganha ao lado um
 arquivo .qml com o mesmo nome, que leva as cores. O QGIS aplica
