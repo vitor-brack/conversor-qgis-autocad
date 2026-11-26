@@ -220,17 +220,46 @@ lista de camadas e o desenho.
     zoom e clicar nas linhas do mesmo jeito. "Voltar ao normal"
     ou a tecla Esc traz tudo de volta.
 
-  - A LISTA mostra cada camada com a cor que ela tem e o que tem
-    dentro (pontos, linhas, areas, textos). O campo "Buscar"
-    filtra pelo nome. A janela abre SEM NENHUMA camada marcada.
+  - A LISTA tem uma linha por camada, em tres colunas:
+      * "Camada": a caixinha, as cores da camada (ate tres
+        quadradinhos, a cor mais usada primeiro) e o nome. Camada
+        com mais de uma cor tem uma SETINHA: clicando nela, abrem
+        as cores da camada, cada uma com o nome ("azul", "marrom",
+        "cinza-claro") e a sua caixinha. O nome da cor e
+        aproximado, so para ajudar a achar; quando duas cores da
+        mesma camada ganham o mesmo nome, o codigo vem junto, como
+        "azul (#007fff)".
+      * "O que tem": o que a camada (ou a cor) tem, contado como se
+        ve no desenho: "3 linhas . 8 textos" (ver "O QUE E UMA
+        LINHA", mais abaixo). Camada desligada no AutoCAD diz
+        "desligada".
+      * "Na conversao": o que vai dela. "tudo"; "so azul" (algumas
+        cores); "1 linha escolhida" (clicada no desenho); ou nada.
+    O campo "Buscar camada" filtra pelo nome. A janela abre SEM
+    NENHUMA camada marcada, e embaixo da lista uma frase resume o
+    que vai para a conversao.
 
-  - ESCOLHER O QUE VAI PARA A CONVERSAO tem dois jeitos, que se
+  - A CAIXINHA de cada linha tem tres jeitos:
+      vazia ........... nada dela vai para a conversao;
+      com um traco .... vai uma parte (algumas cores, ou linhas e
+                        textos clicados no desenho);
+      com o visto ..... vai tudo.
+    Clicar na caixinha (ou nos quadradinhos de cor ao lado) marca e
+    desmarca; a barra de espaco faz o mesmo na linha escolhida.
+    Caixinha com o traco, clicada, passa a levar tudo. Desmarcar
+    tira tambem as linhas e textos que tinham sido clicados ali.
+
+  - ESCOLHER O QUE VAI PARA A CONVERSAO tem varios jeitos, que se
     somam:
-      * A CAMADA INTEIRA: marque a caixinha dela na lista. A camada
-        marcada fica em NEGRITO, na mesma cor, na lista e no
-        desenho. O botao "Marcar todas" marca de uma vez tudo o
+      * A CAMADA INTEIRA: marque a caixinha dela na lista. O que
+        vai fica em NEGRITO, na lista e no desenho (no desenho, na
+        mesma cor). O botao "Marcar todas" marca de uma vez tudo o
         que a lista mostra, inclusive as camadas que so tem
         textos (ou so hachuras).
+      * SO ALGUMAS CORES DE UMA CAMADA: abra a camada pela setinha
+        e marque as cores que quer. Muitos desenhos jogam quase
+        tudo numa camada so (a camada "0") e diferenciam as coisas
+        pela cor.
       * UMA LINHA SO: clique nela no desenho. Ela fica em negrito,
         na cor de sempre, e o resto da camada continua fino.
       * UM TEXTO SO: clique em cima dele no desenho. As letras ficam
@@ -241,11 +270,13 @@ lista de camadas e o desenho.
     escolhidas (e, se ja estava escolhido, tira). Clicar num
     lugar vazio nao mexe em nada. Clicando em cima de um texto, vale
     o texto; para escolher uma linha que passa por ele, clique na
-    linha fora do texto. Na lista, a camada escolhida fica em
-    negrito e diz "(1 linha escolhida)" ou "(1 texto escolhido)"; o botao
-    "Desmarcar todas" tira tudo. Clicar no nome de uma camada na
-    lista so a destaca no desenho, com um contorno branco, sem
-    marcar nem trocar a cor.
+    linha fora do texto. Na lista, a caixinha da camada fica com o
+    traco e a coluna "Na conversao" diz "1 linha escolhida" ou
+    "1 texto escolhido"; embaixo da lista aparecem a camada, a cor
+    e o texto clicado. O botao "Desmarcar todas" tira tudo. Clicar
+    no nome de uma camada (ou de uma cor) na lista so a destaca no
+    desenho, com um contorno azul claro, sem marcar nem trocar a
+    cor.
 
     O QUE E "UMA LINHA": no AutoCAD cada trecho reto e uma peca
     (um quadrado feito com quatro tracinhos tem quatro pecas), mas
@@ -254,24 +285,29 @@ lista de camadas e o desenho.
     fechada (um lote, um circulo) ja e uma linha so e nao se junta a
     nenhuma outra. Pecas que so se tocam no meio de outra (um "T")
     NAO se juntam: use CTRL + clique para somar cada uma. Pontos e
-    areas contam um por um. A lista diz "N linhas" porque conta as
-    pecas do AutoCAD, entao pode ser bem mais do que o numero de
-    linhas que se enxerga no desenho. Ao clicar, o texto abaixo da
-    lista diz a camada, a cor e de quantas pecas e a linha.
+    areas contam um por um. A lista conta as linhas desse jeito, como
+    se enxergam no desenho (o quadrado de quatro tracinhos e 1
+    linha). Ao clicar, o texto abaixo da lista diz a camada, a cor e
+    de quantas pecas e a linha.
 
-SEPARAR CADA CAMADA POR COR: muitos desenhos jogam quase tudo
-numa camada so (a camada "0") e diferenciam as coisas pela cor.
-Marcando "Separar cada camada por cor", a lista passa a ter uma
-linha para cada cor de cada camada ("0 . ciano", "0 . verde"...),
-cada uma com a sua caixinha. Clicar numa linha do desenho escolhe
-so aquela linha, tambem aqui. Na conversao, cada cor marcada (ou com
-linhas escolhidas) vira uma camada de saida propria, de nome
-"<camada>_<cor>" (por exemplo 0_ciano); o campo "Layer" da tabela
-continua dizendo a camada original. Camadas que tem uma cor so mantem o nome de sempre. Ao
-ligar ou desligar a opcao, as marcas vao junto; uma camada so conta
-como marcada, no modo sem cores, se TODAS as cores dela estavam.
-O programa nao sabe o que cada cor significa (se o azul e rio, por
-exemplo): isso quem desenhou ou usa o desenho e que sabe.
+    A COR DOS TEXTOS: um texto pode ter a cor escrita nele mesmo,
+    diferente da cor da camada (o endereco do carimbo, azul numa
+    camada laranja). A lista, o desenho e a conversao usam a cor
+    que aparece. Se as palavras do texto tem cores diferentes, vale
+    a cor da camada.
+
+UMA CAMADA DO QGIS PARA CADA COR: marcando "Na saida, uma camada
+do QGIS para cada cor", cada camada de mais de uma cor que vai
+para a conversao sai dividida, uma camada de saida por cor, de
+nome "<camada>_<cor>" (por exemplo 0_ciano). As cores basicas do
+AutoCAD vao pelo nome (vermelho, amarelo, verde, ciano, azul,
+magenta...); as outras, pelo codigo (por exemplo 0_a55252), que
+nunca se repete. O campo "Layer" da tabela continua dizendo a
+camada original. Camadas que tem uma cor so mantem o nome de
+sempre. A opcao so muda a saida: a lista e o que esta marcado
+continuam iguais. O programa nao sabe o que cada cor significa
+(se o azul e rio, por exemplo): isso quem desenhou ou usa o
+desenho e que sabe.
 
 Marque so as camadas que quer e clique em CONVERTER: o resultado
 leva apenas elas. O clique no desenho escolhe pontos, linhas,
