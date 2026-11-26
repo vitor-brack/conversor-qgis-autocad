@@ -92,20 +92,92 @@ def test_sem_separar_por_camada_as_cores_se_juntam_mas_o_filtro_vale(dxf):
     assert contar(saida, "LineString") == 4
 
 
-def test_os_itens_da_previa_batem_com_as_camadas_gravadas(dxf):
-    # o que a lista oferece (uma linha por camada e cor) tem de ser o que sai
+def conferir_que_a_previa_bate_com_a_saida(dxf, nome):
+    """O que a lista oferece (cada cor de cada camada) tem de ser o que sai."""
     p = previa.ler(dxf[0])
-    multi = {u.camada for u in p.unidades if "·" in u.rotulo}
     cores = {}
     for u in p.unidades:
         cores.setdefault(u.camada, set()).add(u.cor)
-    _, camadas = converter(dxf, "bate.gpkg", camadas=set(cores), cores=cores,
+    multi = {c for c, lista in cores.items() if len(lista) > 1}
+    _, camadas = converter(dxf, nome, camadas=set(cores), cores=cores,
                            separar_por_cor=multi)
     gravadas = {c.rsplit("_", 1)[0] for c in camadas}
     esperadas = set()
     for u in p.unidades:
         esperadas.add(u.camada + "_" + dxf_nome(u.cor) if u.camada in multi else u.camada)
     assert gravadas == esperadas, "previa: %s / gravadas: %s" % (sorted(esperadas), sorted(gravadas))
+
+
+def test_os_itens_da_previa_batem_com_as_camadas_gravadas(dxf):
+    conferir_que_a_previa_bate_com_a_saida(dxf, "bate.gpkg")
+
+
+# --- MTEXT com cor propria ---------------------------------------------------------------
+# No desenho real, o endereco do carimbo ("Av. Sao Pedro 1170...") e um MTEXT na camada
+# SELOSCHEI2 (laranja) com a cor azul escrita dentro do texto. O AutoCAD o mostra azul, a
+# previa o desenha azul e o QGIS tambem (o rotulo em HTML leva a cor), mas o GDAL o entrega
+# com a cor da entidade, laranja: a lista dizia laranja e, separando por cor, o texto azul
+# nao estava em cor nenhuma da lista.
+LARANJA = "#ff7f00"                  # cor 30 do AutoCAD
+
+
+@pytest.fixture(scope="module")
+def dxf_mtext(tmp_path_factory):
+    pasta = tmp_path_factory.mktemp("mtext_cor")
+    doc = ezdxf.new("R2010")
+    doc.layers.add("S", color=30)
+    doc.layers.add("M", color=30)
+    msp = doc.modelspace()
+    msp.add_line((0, 0), (10, 0), dxfattribs={"layer": "S"})
+    msp.add_mtext("\\C5;Av. Sao Pedro 1170",
+                  dxfattribs={"layer": "S", "char_height": 1, "insert": (0, 5)})
+    # duas cores dentro do mesmo texto: nao ha uma cor so; fica a da entidade
+    msp.add_mtext("\\C5;meio azul \\C1;meio vermelho",
+                  dxfattribs={"layer": "M", "char_height": 1, "insert": (0, 10)})
+    caminho = str(pasta / "m.dxf")
+    doc.saveas(caminho)
+    return caminho, pasta
+
+
+def _grupo_do_texto(p, trecho):
+    return next(g for g in p.grupos.values() if g.texto and trecho in g.texto)
+
+
+def test_mtext_com_cor_propria_fica_na_cor_que_aparece(dxf_mtext):
+    p = previa.ler(dxf_mtext[0])
+    assert _grupo_do_texto(p, "Pedro").cor == AZUL, "o clique diz a cor que se ve"
+    cores_de_s = {u.cor: u.contagem for u in p.unidades if u.camada == "S"}
+    assert cores_de_s == {LARANJA: {"linha": 1}, AZUL: {"texto": 1}}, cores_de_s
+
+
+def test_mtext_de_varias_cores_fica_com_a_cor_da_entidade(dxf_mtext):
+    p = previa.ler(dxf_mtext[0])
+    assert _grupo_do_texto(p, "meio").cor == LARANJA
+
+
+def test_filtrar_pela_cor_propria_do_mtext_leva_o_texto(dxf_mtext):
+    saida, camadas = converter(dxf_mtext, "so_o_azul.gpkg", camadas={"S"}, cores={"S": {AZUL}})
+    assert camadas == ["S_Texto"], "so o texto azul, sem a linha laranja -> %s" % camadas
+    with fiona.open(saida, layer="S_Texto") as f:
+        assert [ft["properties"]["cor_cad"] for ft in f] == [AZUL]
+
+
+def test_os_itens_da_previa_batem_com_a_saida_com_mtext_de_cor_propria(dxf_mtext):
+    conferir_que_a_previa_bate_com_a_saida(dxf_mtext, "bate_mtext.gpkg")
+
+
+def test_mtext_de_varias_cores_engrossa_quando_a_cor_dele_na_lista_e_marcada(dxf_mtext):
+    # as letras saem azuis e vermelhas, mas na lista o texto e da cor laranja (a da
+    # entidade): marcar o laranja tem de engrossar o texto, senao ele parece desmarcado
+    from conversor import previa_raster as pr
+    p = previa.ler(dxf_mtext[0])
+    indice = {u.chave: n for n, u in enumerate(p.unidades)}
+    desenhos = pr.montar_desenhos(p, set(indice), indice, marcadas={("M", LARANJA)},
+                                  por_cor=True)
+    do_texto = [d for d in desenhos if d.tipo == "texto" and d.id == indice[("M", LARANJA)]]
+    assert do_texto and all(d.grosso for d in do_texto), \
+        "as letras do texto de duas cores -> %s" % [(d.id, d.rgb, d.grosso) for d in desenhos]
+    assert {d.rgb for d in do_texto} == {(0, 0, 255), (255, 0, 0)}, "cada letra na sua cor"
 
 
 def dxf_nome(cor):

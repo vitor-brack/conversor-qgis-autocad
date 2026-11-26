@@ -946,6 +946,12 @@ def _converter_dxf(entrada, caminho_dxf, saida, epsg_origem, formato, epsg_desti
             if eh_hatch:
                 props[CAMPO_COR] = cor_da_hachura.get(
                     (props.get("EntityHandle") or "").upper(), props[CAMPO_COR])
+            elif (indice_mtext is not None and "MText" in (props.get("SubClasses") or "")
+                  and _tipo_base(bruta) == "Point"):
+                # a cor escrita dentro do MTEXT, a mesma que a previa mostra na lista
+                ponto = bruta["coordinates"]
+                props[CAMPO_COR] = indice_mtext.cor_do_texto(
+                    ponto[0], ponto[1], props.get("Text"), props[CAMPO_COR])
             if (not escolhida and cores is not None and camada_cad in cores
                     and props[CAMPO_COR] not in cores[camada_cad]):
                 continue

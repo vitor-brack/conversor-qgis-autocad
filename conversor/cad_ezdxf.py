@@ -895,3 +895,24 @@ class IndiceMtext:
             if "".join(m["texto"].split()) == alvo:
                 return m
         return candidatos[0] if len(candidatos) == 1 else None
+
+    def cor_do_texto(self, x, y, texto, cor):
+        """A cor do MTEXT do GDAL em (x, y) como o AutoCAD o mostra (ver cor_do_mtext); `cor`
+        e a que o GDAL deu, a da entidade."""
+        achado = self.achar(x, y, texto)
+        return cor_do_mtext(achado, cor) if achado else cor
+
+
+def cor_do_mtext(m, cor_da_entidade):
+    """'#rrggbb' em que o AutoCAD mostra o MTEXT: a cor escrita dentro dele (um codigo como
+    barra-C5) quando todas as palavras tem a mesma; sem cor propria, ou com mais de uma, a
+    da entidade.
+
+    O GDAL so conhece a da entidade: no carimbo do desenho real, o endereco e azul por dentro
+    numa camada laranja. A previa (a lista e o clique) e a conversao (o filtro e o nome da
+    camada separada por cor) usam esta mesma regra, para a cor escolhida na lista ser a que
+    a conversao procura. Com duas cores no mesmo texto o rotulo em HTML ja leva cada uma, e
+    o campo fica com a da entidade, a das palavras sem codigo."""
+    cores = {t[2].get("cor") or cor_da_entidade for t in m.get("trechos") or ()
+             if t[0] == "palavra" and t[1].strip()}
+    return cores.pop() if len(cores) == 1 else cor_da_entidade

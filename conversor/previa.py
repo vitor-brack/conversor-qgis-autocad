@@ -183,6 +183,9 @@ class Texto:
     entidade: int = -1
     handle: str = ""
     grupo: int = -1
+    # a cor em que o texto esta na lista (a do Grupo, ver cad_ezdxf.cor_do_mtext); num MTEXT
+    # de duas cores, cada palavra se pinta com a sua, mas o texto e de uma cor so na lista
+    cor_da_lista: str = ""
 
 
 @dataclass
@@ -217,6 +220,7 @@ class Trecho:
     # texto: (aneis de cada texto [T], altura das maiusculas [T] (0: sem caixa, nunca vira
     # caixa), girado [T], caixas [T x 5 x 2]); ver Texto
     letreiros: tuple = ()
+    cor_da_lista: str = ""         # texto: a cor deles na lista (ver Texto.cor_da_lista)
 
 
 @dataclass
@@ -387,8 +391,8 @@ def _plano(formas, hachuras, textos=(), limite=None):
         somar((None, h), [h.ordem], [h.seq])
     por_cor = collections.defaultdict(list)
     for t in textos:
-        por_cor[(t.camada, t.cor)].append(t)
-    for (camada, _cor), lista in por_cor.items():
+        por_cor[(t.camada, t.cor, t.cor_da_lista or t.cor)].append(t)
+    for (camada, _cor, _da_lista), lista in por_cor.items():
         somar((camada, lista), [t.ordem for t in lista], [t.seq for t in lista])
     if not donos:
         return []
@@ -424,7 +428,8 @@ def _trecho(camada, dono, vetores):
                            for t in escolhidos], dtype=float).reshape(-1, 5, 2)
         return Trecho("texto", camada, escolhidos[0].cor, "texto", False, xy, inicio,
                       grupos=np.array([t.grupo for t in escolhidos], dtype=np.int64),
-                      letreiros=(aneis, alturas, girados, caixas))
+                      letreiros=(aneis, alturas, girados, caixas),
+                      cor_da_lista=escolhidos[0].cor_da_lista or escolhidos[0].cor)
     f = dono
     if vetores is None or len(vetores) == len(f.inicio) - 1:
         xy, inicio, grupos = f.xy, f.inicio, f.grupos
@@ -629,6 +634,8 @@ def ler(caminho_dxf, registrar=None):
     cores_tabela = dxf_estilo.ler_cores_das_camadas(caminho_dxf)
     desenho_ez = _ler_ezdxf(caminho_dxf)
     cor_da_hachura, hachuras = _hachuras_do_ezdxf(desenho_ez)
+    # a cor escrita dentro dos MTEXT, que o GDAL nao ve (a mesma regra da conversao)
+    indice_mtext = cad_ezdxf.IndiceMtext(desenho_ez.get("mtexts") or ()) if desenho_ez else None
     ordem = (desenho_ez or {}).get("ordem") or {}
     # o que o AutoCAD esconde e o GDAL nao sabe (atributos de bloco congelado...)
     ocultos = (desenho_ez or {}).get("ocultos") or set()
@@ -660,6 +667,11 @@ def ler(caminho_dxf, registrar=None):
             eh_hatch = "AcDbHatch" in subclasses
             if eh_hatch:
                 hex_cor = cor_da_hachura.get(handle, hex_cor)
+            elif (indice_mtext is not None and "MText" in subclasses
+                  and convert._tipo_base(bruta) == "Point"):
+                ponto = bruta["coordinates"]
+                hex_cor = indice_mtext.cor_do_texto(ponto[0], ponto[1], props.get("Text"),
+                                                    hex_cor)
             # o SOLID (e o TRACE), cheio por dentro no AutoCAD: a seta do norte, as pontas
             # das cotas. O GDAL o entrega com pincel (BRUSH), como as hachuras, mas ele e
             # uma area do desenho.
@@ -806,6 +818,7 @@ def _grupos_dos_textos(textos, textos_gdal, grupos):
                                 texto=" ".join(t.texto for t in lista))
         for t in lista:
             t.grupo = proximo
+            t.cor_da_lista = g.cor
         proximo += 1
     return sum(len(lista) for chave, lista in entidades.items() if chave not in ligadas)
 

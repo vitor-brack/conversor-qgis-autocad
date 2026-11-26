@@ -170,7 +170,8 @@ def montar_desenhos(previa, nomes, indice, marcadas=(), com_ocultas=True, por_co
             if t.origem == "texto":
                 # o id da camada serve para o destaque da lista; o clique acha o texto pela
                 # caixa dele (Previa.achar_texto), nao pelo mapa
-                chave = (t.camada, t.cor) if por_cor else t.camada
+                chave = ((t.camada, getattr(t, "cor_da_lista", "") or t.cor) if por_cor
+                         else t.camada)
                 ident = indice.get(chave, -1)
                 letreiros = getattr(t, "letreiros", ())
                 desenhos.append(Desenho(ident, rgb, "texto", t.xy, t.inicio,
