@@ -18,3 +18,19 @@ def test_o_preto_do_programa_e_o_branco_do_autocad():
 
 def test_maiuscula_ou_minuscula_e_a_mesma_cor():
     assert dxf_estilo.nome_da_cor("#FF0000") == "vermelho"
+
+
+def test_na_lista_toda_cor_tem_um_nome_que_se_entende():
+    # "#a55252" e "#ffbf00" nao dizem nada a quem olha a lista; o nome do arquivo de saida
+    # continua com o codigo (nome_da_cor), para duas cores nunca darem o mesmo nome
+    nomes = {"#a55252": "marrom", "#ffbf00": "laranja", "#ff7f00": "laranja",
+             "#7f7f7f": "cinza", "#007f00": "verde-escuro", "#0000ff": "azul",
+             "#ff00ff": "magenta", "#ffffff": "branco", "#001326": "azul-escuro",
+             "#1f007f": "roxo-escuro", "#ff7f7f": "vermelho-claro"}
+    for cor, nome in nomes.items():
+        assert dxf_estilo.nome_para_ler(cor) == nome, "%s -> %s" % (cor, dxf_estilo.nome_para_ler(cor))
+
+
+def test_na_lista_a_cor_7_e_preta_como_na_previa():
+    # a previa tem o fundo branco do AutoCAD do pai: a cor 7 aparece preta
+    assert dxf_estilo.nome_para_ler("#000000") == "preto"

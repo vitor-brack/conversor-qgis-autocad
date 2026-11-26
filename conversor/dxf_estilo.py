@@ -109,9 +109,56 @@ _NOMES_DE_COR = {"#ff0000": "vermelho", "#ffff00": "amarelo", "#00ff00": "verde"
 
 
 def nome_da_cor(hex_cor):
-    """Como a cor se escreve na lista de camadas e no nome do arquivo."""
+    """Como a cor se escreve no nome da camada de saida separada por cor: as basicas do
+    AutoCAD pelo nome, as outras pelo codigo (duas cores nunca dao o mesmo nome)."""
     hex_cor = str(hex_cor).lower()
     return _NOMES_DE_COR.get(hex_cor, hex_cor)
+
+
+# (ate o matiz, nome): faixas do circulo de cores, em graus
+_MATIZES = ((15, "vermelho"), (48, "laranja"), (70, "amarelo"), (165, "verde"),
+            (195, "ciano"), (245, "azul"), (285, "roxo"), (330, "magenta"), (345, "rosa"),
+            (361, "vermelho"))
+
+
+def nome_para_ler(hex_cor):
+    """O nome aproximado da cor, para a lista de camadas: "marrom", "laranja",
+    "verde-escuro". "#a55252" nao diz nada a quem olha a lista.
+
+    E so para ler: duas cores parecidas podem ter o mesmo nome (a lista desempata). A cor 7
+    do AutoCAD e "preto", como aparece na previa, que tem o fundo branco do AutoCAD do pai."""
+    import colorsys
+    hex_cor = str(hex_cor).lower()
+    if hex_cor == "#000000":
+        return "preto"
+    if hex_cor == "#ffffff":
+        return "branco"
+    if hex_cor in _NOMES_DE_COR:
+        return _NOMES_DE_COR[hex_cor]
+    try:
+        r, g, b = (int(hex_cor.lstrip("#")[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
+    except ValueError:
+        return hex_cor
+    matiz, luz, saturacao = colorsys.rgb_to_hls(r, g, b)
+    matiz *= 360.0
+    if saturacao < 0.12 or max(r, g, b) - min(r, g, b) < 0.06:
+        if luz < 0.12:
+            return "preto"
+        if luz > 0.9:
+            return "branco"
+        return "cinza-escuro" if luz < 0.35 else "cinza-claro" if luz > 0.7 else "cinza"
+    if luz < 0.05:
+        return "preto"
+    vermelho_ou_laranja = matiz < 48 or matiz >= 345
+    if ((15 <= matiz < 48 and luz < 0.3)
+            or (vermelho_ou_laranja and saturacao < 0.45 and 0.12 <= luz < 0.6)):
+        return "marrom"
+    nome = next(n for limite, n in _MATIZES if matiz < limite)
+    if luz < 0.3:
+        return nome + "-escuro"
+    if luz > 0.7:
+        return nome + "-claro"
+    return nome
 
 
 # ---------------------------------------------------------------------------
