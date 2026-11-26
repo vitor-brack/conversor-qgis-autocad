@@ -722,6 +722,69 @@ def test_selecao_leva_as_camadas_marcadas_e_o_dxf_pronto(painel, desenho):
 
 
 # ---------------------------------------------------------------------------
+# o desenho fica parado: os textos em volta mudam sem empurrar ele
+@pytest.fixture
+def painel_na_janela(raiz, desenho):
+    """O painel num espaco de tamanho fixo, como na janela do programa: a altura que sobra vai
+    para o desenho. (O tamanho vem do `place`, e nao da janela: a janela escondida dos testes
+    nunca aparece, e o Windows deixa de aplicar o tamanho pedido a ela.)"""
+    from conversor.gui_camadas import PainelCamadas
+    p = PainelCamadas(raiz)
+    p.place(x=0, y=0, width=620, height=900)   # estreito: as frases quebram
+    p.definir_previa(desenho[1], dxf_pronto=desenho[0])
+    raiz.update()
+    assert p.tela.winfo_height() > 200, p.winfo_geometry()
+    yield p
+    p.destroy()
+
+
+def altura_do_desenho(painel):
+    painel.update()
+    return painel.tela.winfo_height()
+
+
+def test_marcar_a_primeira_caixinha_nao_muda_o_tamanho_do_desenho(painel_na_janela):
+    p = painel_na_janela
+    antes = altura_do_desenho(p)
+    assert antes > 200
+    primeira = p.nomes_na_lista()[0]
+    p.alternar(primeira)
+    assert altura_do_desenho(p) == antes, "a frase do resumo mudou e empurrou o desenho"
+    p.alternar(primeira)
+    assert altura_do_desenho(p) == antes
+
+
+def test_o_detalhe_e_a_busca_nao_mudam_o_tamanho_do_desenho(painel_na_janela):
+    p = painel_na_janela
+    p.mostrar_ocultas.set(True)
+    antes = altura_do_desenho(p)
+    for nome in p.nomes_na_lista():
+        p.selecionar(nome)                       # cada camada tem um detalhe de um tamanho
+        assert altura_do_desenho(p) == antes, "detalhe de %s: %r" % (nome, p.detalhe.get())
+    p.filtrar("zzz")
+    assert "zzz" in p.aviso_busca.get()
+    assert altura_do_desenho(p) == antes, "o aviso da busca empurrou o desenho"
+    p.filtrar("")
+    assert altura_do_desenho(p) == antes
+
+
+def test_frases_de_uma_ou_duas_linhas_nao_mudam_o_tamanho_do_desenho(painel_na_janela):
+    from tkinter import font as tkfont
+    p = painel_na_janela
+    fonte = tkfont.nametofont("TkDefaultFont")
+    largura = float(str(p._rotulos_de_texto[0].cget("wraplength")))
+    longa = "palavra"
+    while fonte.measure(longa) < 1.5 * largura:           # linha e meia: quebra em duas
+        longa += " palavra"
+    antes = altura_do_desenho(p)
+    for resumo, detalhe in (("curta", ""), (longa, ""), ("curta", longa), (longa, longa)):
+        p.resumo.set(resumo)
+        p.detalhe.set(detalhe)
+        assert altura_do_desenho(p) == antes, \
+            "resumo de %d e detalhe de %d letras" % (len(resumo), len(detalhe))
+
+
+# ---------------------------------------------------------------------------
 # a leitura em segundo plano, com os estados
 def test_carregar_le_em_segundo_plano_e_chega_no_pronto(raiz, desenho):
     from conversor.gui_camadas import PainelCamadas

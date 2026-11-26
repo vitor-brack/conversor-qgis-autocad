@@ -286,10 +286,11 @@ class PainelCamadas(ttk.LabelFrame):
         self.arvore.bind("<<TreeviewSelect>>", self._ao_selecionar)
         self.arvore.bind("<space>", self._espaco)
 
-        # so aparece quando a busca nao acha nada
-        self.rotulo_busca = ttk.Label(c, textvariable=self.aviso_busca, foreground="#555")
-        self.rotulo_busca.grid(row=2, column=0, sticky="w", pady=(4, 0))
-        self.rotulo_busca.grid_remove()
+        # a busca que nao acha nada: o aviso aparece no meio da lista vazia, por cima dela
+        # (numa linha propria, ele empurraria o desenho para baixo)
+        fundo = estilo.lookup("Treeview", "fieldbackground") or "white"
+        self.rotulo_busca = ttk.Label(quadro, textvariable=self.aviso_busca, foreground="#555",
+                                      background=fundo, wraplength=420, justify="center")
 
         opcoes = ttk.Frame(c)
         opcoes.grid(row=3, column=0, sticky="w", pady=(6, 0))
@@ -300,10 +301,24 @@ class PainelCamadas(ttk.LabelFrame):
         # o que sai da frente quando o desenho e ampliado
         self._partes_da_lista = (barra, quadro, opcoes)
 
-        ttk.Label(c, textvariable=self.resumo, wraplength=560, justify="left"
-                  ).grid(row=4, column=0, sticky="w", pady=(8, 0))
-        ttk.Label(c, textvariable=self.detalhe, wraplength=560, justify="left",
-                  foreground="#555").grid(row=5, column=0, sticky="w", pady=(2, 6))
+        # o resumo e o detalhe moram num espaco de altura fixa, de quatro linhas de texto:
+        # a frase muda sem mexer no desenho embaixo (ele pulava 15 pixels ao marcar a
+        # primeira camada: "nada escolhido" ocupava duas linhas, e "vai para a conversao",
+        # uma; o desenho se reenquadrava no tamanho novo)
+        textos = ttk.Frame(c)
+        textos.grid(row=4, column=0, sticky="nwe", pady=(8, 6))
+        textos.columnconfigure(0, weight=1)
+        self._rotulos_de_texto = (
+            ttk.Label(textos, textvariable=self.resumo, wraplength=560, justify="left"),
+            ttk.Label(textos, textvariable=self.detalhe, wraplength=560, justify="left",
+                      foreground="#555"))
+        self._rotulos_de_texto[0].grid(row=0, column=0, sticky="nw")
+        self._rotulos_de_texto[1].grid(row=1, column=0, sticky="nw", pady=(2, 0))
+        sonda = ttk.Label(textos, text="1\n2")
+        duas_linhas = sonda.winfo_reqheight()
+        sonda.destroy()
+        c.rowconfigure(4, minsize=2 * duas_linhas + 2 + 8 + 6)
+        textos.bind("<Configure>", self._ao_mudar_a_largura_dos_textos)
 
         ferramentas = ttk.Frame(c)
         ferramentas.grid(row=6, column=0, sticky="we")
@@ -489,7 +504,7 @@ class PainelCamadas(ttk.LabelFrame):
         self.vista = self._regiao = None
         self.busca.set("")
         self.aviso_busca.set("")
-        self.rotulo_busca.grid_remove()
+        self.rotulo_busca.place_forget()
         self.detalhe.set("")
         self._avisar_feicoes_longe()
         self._estado("pronto")
@@ -673,6 +688,11 @@ class PainelCamadas(ttk.LabelFrame):
         self._silencio = False
         self._atualizar_resumo()
 
+    def _ao_mudar_a_largura_dos_textos(self, evento):
+        """O resumo e o detalhe quebram a linha na largura que o painel tem."""
+        for rotulo in self._rotulos_de_texto:
+            rotulo.configure(wraplength=max(200, evento.width - 4))
+
     def _inserir(self, pai, iid, chave, texto):
         self._iid[chave] = iid
         self._nome_de[iid] = chave
@@ -721,8 +741,8 @@ class PainelCamadas(ttk.LabelFrame):
                 else:
                     textos += 1
         if not (inteiras or partes_de or linhas or textos):
-            self.resumo.set("Nada escolhido ainda. Marque as camadas na lista ou clique nas "
-                            "linhas e textos do desenho (Ctrl+clique soma).")
+            self.resumo.set("Nada escolhido ainda: marque as camadas na lista ou clique no "
+                            "desenho.")
             return
         partes = []
         if inteiras:
@@ -806,10 +826,10 @@ class PainelCamadas(ttk.LabelFrame):
         if texto and not self._iid:
             self.aviso_busca.set("Nenhuma camada tem \"%s\" no nome. Use Limpar para ver "
                                  "todas." % texto)
-            self.rotulo_busca.grid()
+            self.rotulo_busca.place(in_=self.arvore, relx=0.5, rely=0.55, anchor="center")
         else:
             self.aviso_busca.set("")
-            self.rotulo_busca.grid_remove()
+            self.rotulo_busca.place_forget()
 
     def selecionar(self, chave):
         if chave not in self._iid:
@@ -842,11 +862,10 @@ class PainelCamadas(ttk.LabelFrame):
                 nome = item.nome
             texto = "%s: %s." % (nome, item.resumo() or "vazia")
             if item.oculta:
-                texto += " Desligada no AutoCAD: marque a caixa para levar para a conversao."
+                texto += " Desligada no AutoCAD: so vai se marcar a caixa."
             if (item.tem_desenho and not item.tem_geometria
                     and not item.contagem.get("texto")):
-                texto += (" Aparece no desenho, mas o clique so escolhe pontos, linhas, areas "
-                          "e textos (hachuras e figuras vao pela camada marcada).")
+                texto += " O clique no desenho nao escolhe hachuras e figuras: vao com a caixa."
             self.detalhe.set(texto)
         self._renderizar()
 
@@ -913,10 +932,6 @@ class PainelCamadas(ttk.LabelFrame):
                 parte.grid_remove()
             else:
                 parte.grid()                 # volta com as mesmas opcoes de antes
-        if ligar or not self.aviso_busca.get():
-            self.rotulo_busca.grid_remove()
-        else:
-            self.rotulo_busca.grid()
         self.botao_ampliar.configure(text="Voltar ao normal (Esc)" if ligar else "Ampliar desenho")
         topo = self.winfo_toplevel()
         if ligar:
