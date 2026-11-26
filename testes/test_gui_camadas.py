@@ -784,6 +784,23 @@ def test_frases_de_uma_ou_duas_linhas_nao_mudam_o_tamanho_do_desenho(painel_na_j
             "resumo de %d e detalhe de %d letras" % (len(resumo), len(detalhe))
 
 
+def test_os_titulos_das_colunas_ficam_no_meio(painel):
+    for coluna in ("#0", "conteudo", "vai"):
+        assert str(painel.arvore.heading(coluna, "anchor")) == "center", coluna
+
+
+def test_as_colunas_tem_uma_divisoria_onde_cada_uma_comeca(painel, monkeypatch):
+    # sem janela na tela o Tk nao diz onde as celulas estao: aqui ele "diz"
+    celulas = {"#0": (2, 25, 200, 24), "conteudo": (202, 25, 150, 24), "vai": (352, 25, 140, 24)}
+    monkeypatch.setattr(painel.arvore, "bbox", lambda item, column=None: celulas[column or "#0"])
+    painel._ajustar_divisorias()
+    assert [(d.place_info().get("x"), d.place_info().get("y")) for d in painel._divisorias] == \
+        [("201", "25"), ("351", "25")], "no comeco de 'O que tem' e de 'Na conversao'"
+    monkeypatch.setattr(painel.arvore, "bbox", lambda item, column=None: "")
+    painel._ajustar_divisorias()
+    assert all(not d.place_info() for d in painel._divisorias), "sem linhas na lista, sem divisoria"
+
+
 # ---------------------------------------------------------------------------
 # a leitura em segundo plano, com os estados
 def test_carregar_le_em_segundo_plano_e_chega_no_pronto(raiz, desenho):

@@ -46,6 +46,7 @@ LARGURA, ALTURA = 560, 300
 MARGEM_DO_VER_TUDO = 16                          # pixels de folga em volta do "Ver tudo"
 MAX_AMOSTRAS = 3                                # amostras de cor ao lado da caixa da camada
 COR_DA_MARCA = "#0067c0"                        # a caixa marcada: o azul do Windows 11
+COR_DA_DIVISORIA = "#d9d9d9"                    # a linha entre as colunas da lista
 FATOR_DO_ZOOM = 1.25
 LIMITE_DO_CLIQUE = 4                            # pixels: abaixo disto o arrasto e um clique
 RAIO_DO_CLIQUE = 6                              # pixels: a linha mais perto que isto e a clicada
@@ -270,9 +271,9 @@ class PainelCamadas(ttk.LabelFrame):
                          rowheight=max(fonte.metrics("linespace"), self._fotos.lado) + 9)
         self.arvore = ttk.Treeview(quadro, columns=("conteudo", "vai"), style="Camadas.Treeview",
                                    show="tree headings", height=8, selectmode="browse")
-        self.arvore.heading("#0", text="Camada", anchor="w")
-        self.arvore.heading("conteudo", text="O que tem", anchor="w")
-        self.arvore.heading("vai", text="Na conversao", anchor="w")
+        self.arvore.heading("#0", text="Camada", anchor="center")
+        self.arvore.heading("conteudo", text="O que tem", anchor="center")
+        self.arvore.heading("vai", text="Na conversao", anchor="center")
         self.arvore.column("#0", width=250, minwidth=160, stretch=True)
         self.arvore.column("conteudo", width=170, minwidth=110, stretch=True)
         self.arvore.column("vai", width=140, minwidth=90, stretch=False)
@@ -285,6 +286,13 @@ class PainelCamadas(ttk.LabelFrame):
         self.arvore.bind("<Button-1>", self._clique_na_lista)
         self.arvore.bind("<<TreeviewSelect>>", self._ao_selecionar)
         self.arvore.bind("<space>", self._espaco)
+        # o ttk nao desenha a divisao das colunas: uma linha fina por cima, onde cada coluna
+        # comeca, refeita quando a lista muda de tamanho ou uma coluna e arrastada
+        self._divisorias = [tk.Frame(self.arvore, width=1, background=COR_DA_DIVISORIA,
+                                     borderwidth=0, highlightthickness=0) for _ in range(2)]
+        self._depois_divisorias = None
+        for evento in ("<Configure>", "<B1-Motion>", "<ButtonRelease-1>"):
+            self.arvore.bind(evento, self._agendar_divisorias, add="+")
 
         # a busca que nao acha nada: o aviso aparece no meio da lista vazia, por cima dela
         # (numa linha propria, ele empurraria o desenho para baixo)
@@ -687,6 +695,34 @@ class PainelCamadas(ttk.LabelFrame):
             self.arvore.selection_set(self._iid[self.destaque])
         self._silencio = False
         self._atualizar_resumo()
+        self._agendar_divisorias()
+
+    def _agendar_divisorias(self, _evento=None):
+        if self._depois_divisorias is None:
+            self._depois_divisorias = self.after_idle(self._ajustar_divisorias)
+
+    def _ajustar_divisorias(self):
+        """Poe as linhas entre as colunas onde "O que tem" e "Na conversao" comecam, da
+        altura dos titulos ate o fim da lista. O Tk so sabe onde as celulas estao com a lista
+        na tela e alguma linha a vista: sem isso, as linhas saem."""
+        self._depois_divisorias = None
+        caixas = None
+        for pai in self.arvore.get_children():
+            for iid in (pai,) + tuple(self.arvore.get_children(pai)):
+                celulas = [self.arvore.bbox(iid, column=c) for c in ("#0", "conteudo", "vai")]
+                if all(celulas):
+                    caixas = celulas
+                    break
+            if caixas:
+                break
+        if not caixas:
+            for linha in self._divisorias:
+                linha.place_forget()
+            return
+        borda, topo = caixas[0][0], caixas[1][1]
+        altura = max(1, self.arvore.winfo_height() - topo - borda)
+        for linha, celula in zip(self._divisorias, caixas[1:]):
+            linha.place(x=celula[0] - 1, y=topo, width=1, height=altura)
 
     def _ao_mudar_a_largura_dos_textos(self, evento):
         """O resumo e o detalhe quebram a linha na largura que o painel tem."""
@@ -1172,7 +1208,7 @@ class PainelCamadas(ttk.LabelFrame):
         self._pendentes = restantes
 
     def destroy(self):
-        for id_ in (self._depois_render, self._depois_fila):
+        for id_ in (self._depois_render, self._depois_fila, self._depois_divisorias):
             if id_:
                 try:
                     self.after_cancel(id_)
